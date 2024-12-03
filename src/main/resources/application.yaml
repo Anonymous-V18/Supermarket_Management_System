@@ -1,0 +1,26 @@
+#file: noinspection undefined
+server:
+  port: 9999
+  servlet:
+    context-path: /api/v1
+
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/supermarket_management
+    username: root
+    password: 8082
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+com:
+  anonymous:
+    jwt:
+      secret-key: AStKcgoiqKX.UsEewLu|@*?}SV2aKAvOXVc64,aTB'V=/K)lT-@uLO.ExYA"O|au
+      valid-duration: 86400
+      refreshable-duration: 864000
+    origin-client-1: http://localhost:4200
+    username-admin: admin1234
+    employee-default-password: 12345678
+

@@ -1,0 +1,12 @@
+package com.anonymous.service;
+
+import com.anonymous.dto.response.CityResponse;
+import com.anonymous.dto.response.UnitResponse;
+
+import java.util.List;
+
+public interface IUnitService {
+
+    List<UnitResponse> getAll();
+
+}
