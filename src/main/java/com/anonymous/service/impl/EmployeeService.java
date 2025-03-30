@@ -13,6 +13,7 @@ import com.anonymous.exception.AppException;
 import com.anonymous.exception.ErrorCode;
 import com.anonymous.repository.IEmployeeRepository;
 import com.anonymous.repository.IPositionRepository;
+import com.anonymous.repository.impl.EmployeeRepositoryImpl;
 import com.anonymous.service.IAddressService;
 import com.anonymous.service.IAuthService;
 import com.anonymous.service.IEmployeeService;
@@ -40,6 +41,7 @@ public class EmployeeService implements IEmployeeService {
     IAuthService authService;
     IAddressService addressService;
     IUserService userService;
+    EmployeeRepositoryImpl employeeRepositoryImpl;
     @NonFinal
     @Value("${com.anonymous.employee-default-password}")
     String EMPLOYEE_DEFAULT_PASSWORD;
@@ -93,7 +95,7 @@ public class EmployeeService implements IEmployeeService {
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         employee = employeeMapper.toEntity(employee, employeeUpdateRequest);
 
-        boolean isUpdatePosition = employeeUpdateRequest.getPositionId().equals(employee.getPosition().getId());
+        boolean isUpdatePosition = !employeeUpdateRequest.getPositionId().equals(employee.getPosition().getId());
         if (isUpdatePosition) {
             Position position = positionRepository.findById(employeeUpdateRequest.getPositionId())
                     .orElseThrow(() -> new AppException(ErrorCode.POSITION_NOT_EXIST));
@@ -140,5 +142,11 @@ public class EmployeeService implements IEmployeeService {
         Employee employee = employeeRepository.findById(currentEmployeeId)
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         return employeeMapper.toDTO(employee);
+    }
+
+    @Override
+    public List<EmployeeResponse> getBySearchCriteria(int page, int limit, String sortBy, String... search) {
+        List<Employee> employees = employeeRepositoryImpl.searchCriteria(page, limit, sortBy, search);
+        return employees.stream().map(employeeMapper::toDTO).toList();
     }
 }

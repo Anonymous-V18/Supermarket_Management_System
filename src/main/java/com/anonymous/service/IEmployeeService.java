@@ -19,4 +19,6 @@ public interface IEmployeeService {
     EmployeeResponse getById(String employeeId);
 
     EmployeeResponse getMyInfo();
+
+    List<EmployeeResponse> getBySearchCriteria(int page, int limit, String sortBy, String... search);
 }

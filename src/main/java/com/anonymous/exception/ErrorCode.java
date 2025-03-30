@@ -42,6 +42,7 @@ public enum ErrorCode {
     TOKEN_INVALID(9991, "Token invalid !", HttpStatus.REQUEST_TIMEOUT),
     UNAUTHORIZED(9992, "User is not permitted !", HttpStatus.UNAUTHORIZED),
     UNAUTHENTICATED(9993, "Unauthenticated error !", HttpStatus.UNAUTHORIZED),
+    OPERATION_NOT_SUPPORTED(9994, "Operation not supported !", HttpStatus.BAD_REQUEST),
     UNCATEGORIZED_EXCEPTION(9999, "Uncategorized error !", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

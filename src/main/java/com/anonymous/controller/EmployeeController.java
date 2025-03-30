@@ -75,4 +75,17 @@ public class EmployeeController {
                 .result(response)
                 .build();
     }
+
+    @GetMapping("/get-all-employees")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ApiResponse<List<EmployeeResponse>> searchCriteria(@RequestParam(value = "page") int page,
+                                                              @RequestParam(value = "limit") int limit,
+                                                              @RequestParam(value = "sortBy") String sortBy,
+                                                              @RequestParam(value = "search", required = false) String... search) {
+        List<EmployeeResponse> response = employeeService.getBySearchCriteria(page, limit, sortBy, search);
+        return ApiResponse.<List<EmployeeResponse>>builder()
+                .result(response)
+                .build();
+    }
+
 }

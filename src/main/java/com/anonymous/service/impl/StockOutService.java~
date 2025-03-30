@@ -68,7 +68,7 @@ public class StockOutService implements IStockOutService {
     }
 
     @Override
-    @Transactional
+    
     public void update(String oldStockOutId, StockOutUpdateRequest stockOutUpdateRequest) {
         StockOut stockOut = stockOutRepository.findById(oldStockOutId)
                 .orElseThrow(() -> new AppException(ErrorCode.STOCK_OUT_NOT_EXIST));

@@ -106,7 +106,7 @@ public class JwtUtil {
         if (isTokenExistedInBlackList) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-
+        
         return signedJWT;
     }
 

@@ -22,7 +22,7 @@ public class InvoiceController {
     IInvoiceService invoiceService;
 
     @PostMapping("/insert")
-    @PreAuthorize("hasAnyRole('SALESMAN','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','SALESMAN','EMPLOYEE')")
     public ApiResponse<String> insert(@RequestBody InvoiceInsertRequest request) {
         invoiceService.insert(request);
         return ApiResponse.<String>builder()
@@ -31,7 +31,7 @@ public class InvoiceController {
     }
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasAnyRole('SALESMAN','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','SALESMAN','EMPLOYEE')")
     public ApiResponse<String> update(@PathVariable(value = "id") String oldInvoiceId,
                                       @RequestBody InvoiceUpdateRequest request) {
         invoiceService.update(oldInvoiceId, request);
@@ -64,5 +64,5 @@ public class InvoiceController {
                 .result(response)
                 .build();
     }
-    
+
 }
