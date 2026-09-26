@@ -80,12 +80,13 @@ public class JwtUtil {
     }
 
     private String getIdFromUser(User user) {
-        boolean isCustomer = user.getRoles().stream()
-                .anyMatch(role -> role.getCode().equals("CUSTOMER"));
-        if (isCustomer) {
+        if (user.getEmployee() != null) {
+            return user.getEmployee().getId();
+        }
+        if (user.getCustomer() != null) {
             return user.getCustomer().getId();
         }
-        return user.getEmployee().getId();
+        return user.getId();
     }
 
     public SignedJWT verifyToken(String token, boolean isRefresh) throws ParseException, JOSEException {

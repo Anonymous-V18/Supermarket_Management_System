@@ -45,9 +45,6 @@ public class EmployeeService implements IEmployeeService {
     @NonFinal
     @Value("${com.anonymous.employee-default-password}")
     String EMPLOYEE_DEFAULT_PASSWORD;
-    @NonFinal
-    @Value("${com.anonymous.username-admin}")
-    String ADMIN_USERNAME;
 
     @Override
     @Transactional
@@ -116,10 +113,16 @@ public class EmployeeService implements IEmployeeService {
     public List<EmployeeResponse> getAll() {
         String currentUsername = authService.getClaimsToken().get("username").toString();
         return employeeRepository.findAll().stream()
-                .filter(employee ->
-                        !employee.getUser().getUsername().equals(ADMIN_USERNAME) &&
-                                !employee.getUser().getUsername().equals(currentUsername)
-                )
+                .filter(employee -> {
+                    User user = employee.getUser();
+                    if (user == null) {
+                        return false;
+                    }
+                    boolean isAdmin = user.getRoles() != null && user.getRoles().stream()
+                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getCode()) || "ADMIN".equalsIgnoreCase(role.getName()));
+                    boolean isCurrentUser = user.getUsername() != null && user.getUsername().equals(currentUsername);
+                    return !isAdmin && !isCurrentUser;
+                })
                 .map(employeeMapper::toDTO)
                 .toList();
     }

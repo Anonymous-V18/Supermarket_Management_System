@@ -15,6 +15,8 @@ import com.anonymous.service.IUserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +34,10 @@ public class UserService implements IUserService {
     PasswordEncoder passwordEncoder;
     IAuthService authService;
 
+    @NonFinal
+    @Value("${com.anonymous.employee-default-password:12345678}")
+    String defaultPassword;
+
     @Override
     public User insert(UserInsertRequest request) {
         userRepository.findByUsername(request.getUsername())
@@ -44,12 +50,44 @@ public class UserService implements IUserService {
 
         User user = userMapper.toEntity(request);
 
-        Set<Role> roles = new HashSet<>(roleRepository.findAllById(request.getRoleIds()));
-        if (roles.size() != request.getRoleIds().size()) {
-            throw new AppException(ErrorCode.ROLE_NOT_EXIST);
+        if (request.getRoleIds() != null && !request.getRoleIds().isEmpty()) {
+            Set<Role> roles = new HashSet<>(roleRepository.findAllById(request.getRoleIds()));
+            if (roles.size() != request.getRoleIds().size()) {
+                throw new AppException(ErrorCode.ROLE_NOT_EXIST);
+            }
+            user.setRoles(roles);
+        } else {
+            Role defaultRole = roleRepository.findByCode("CUSTOMER")
+                    .orElseGet(() -> roleRepository.save(Role.builder()
+                            .code("CUSTOMER")
+                            .name("Customer")
+                            .build()));
+            user.setRoles(Set.of(defaultRole));
         }
-        user.setRoles(roles);
 
+        return userRepository.save(user);
+    }
+
+    @Override
+    public User register(UserInsertRequest request) {
+        userRepository.findByUsername(request.getUsername())
+                .ifPresent(_ -> {
+                    throw new AppException(ErrorCode.USER_EXISTED);
+                });
+
+        String password = passwordEncoder.encode(request.getPassword());
+        request.setPassword(password);
+
+        User user = userMapper.toEntity(request);
+        user.setIsActive(true);
+
+        Role defaultCustomerRole = roleRepository.findByCode("CUSTOMER")
+                .orElseGet(() -> roleRepository.save(Role.builder()
+                        .code("CUSTOMER")
+                        .name("Customer")
+                        .build()));
+
+        user.setRoles(Set.of(defaultCustomerRole));
         return userRepository.save(user);
     }
 
@@ -72,7 +110,7 @@ public class UserService implements IUserService {
     public void resetPassword(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
-        String newPassword = passwordEncoder.encode("12345678");
+        String newPassword = passwordEncoder.encode(defaultPassword);
         user.setPassword(newPassword);
         userRepository.save(user);
     }

@@ -20,7 +20,7 @@ public class UserController {
 
     @PostMapping("/register")
     public ApiResponse<String> register(@RequestBody UserInsertRequest request) {
-        userService.insert(request);
+        userService.register(request);
         return ApiResponse.<String>builder()
                 .message("Register successfully !")
                 .build();

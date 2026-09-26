@@ -27,7 +27,8 @@ public class JpaAuditingConfig {
             return Optional.ofNullable(SecurityContextHolder.getContext())
                     .map(SecurityContext::getAuthentication)
                     .filter(Authentication::isAuthenticated)
-                    .map(Authentication::getName);
+                    .map(Authentication::getName)
+                    .or(() -> Optional.of("SYSTEM"));
         }
     }
 

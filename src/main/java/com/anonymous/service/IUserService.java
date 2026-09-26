@@ -11,6 +11,8 @@ public interface IUserService {
 
     User insert(UserInsertRequest request);
 
+    User register(UserInsertRequest request);
+
     void changePassword(UserChangePasswordRequest userChangePasswordRequest);
 
     void resetPassword(String userId);
