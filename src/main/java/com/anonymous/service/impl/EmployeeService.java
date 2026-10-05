@@ -74,9 +74,7 @@ public class EmployeeService implements IEmployeeService {
 
     @Override
     public EmployeeResponse update(EmployeeUpdateRequest employeeUpdateRequest) {
-        String currentEmployeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(currentEmployeeId)
-                .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
+        Employee employee = authService.getCurrentEmployee();
         employee = employeeMapper.toEntity(employee, employeeUpdateRequest);
 
         Address address = addressService.update(employeeUpdateRequest.getCurrentAddress());
@@ -104,7 +102,6 @@ public class EmployeeService implements IEmployeeService {
         Address address = addressService.update(employeeUpdateRequest.getCurrentAddress());
         employee.setAddress(address);
 
-
         employee = employeeRepository.save(employee);
         return employeeMapper.toDTO(employee);
     }
@@ -118,8 +115,9 @@ public class EmployeeService implements IEmployeeService {
                     if (user == null) {
                         return false;
                     }
-                    boolean isAdmin = user.getRoles() != null && user.getRoles().stream()
-                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getCode()) || "ADMIN".equalsIgnoreCase(role.getName()));
+                    boolean isAdmin = "EMP_ADMIN".equalsIgnoreCase(employee.getCode())
+                            || (user.getRoles() != null && user.getRoles().stream()
+                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getCode()) || "ADMIN".equalsIgnoreCase(role.getName())));
                     boolean isCurrentUser = user.getUsername() != null && user.getUsername().equals(currentUsername);
                     return !isAdmin && !isCurrentUser;
                 })
@@ -141,9 +139,7 @@ public class EmployeeService implements IEmployeeService {
 
     @Override
     public EmployeeResponse getMyInfo() {
-        String currentEmployeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(currentEmployeeId)
-                .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
+        Employee employee = authService.getCurrentEmployee();
         return employeeMapper.toDTO(employee);
     }
 

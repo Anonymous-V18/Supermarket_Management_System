@@ -6,6 +6,9 @@ import com.anonymous.dto.request.RefreshTokenRequest;
 import com.anonymous.dto.response.AuthResponse;
 import com.anonymous.dto.response.RefreshTokenResponse;
 
+import com.anonymous.entity.Customer;
+import com.anonymous.entity.Employee;
+
 import java.util.Map;
 
 public interface IAuthService {
@@ -19,4 +22,8 @@ public interface IAuthService {
     RefreshTokenResponse refreshToken(RefreshTokenRequest refreshTokenRequest);
 
     Map<String, Object> getClaimsToken();
+
+    Employee getCurrentEmployee();
+
+    Customer getCurrentCustomer();
 }

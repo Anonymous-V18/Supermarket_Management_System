@@ -48,9 +48,7 @@ public class StockInService implements IStockInService {
         StatusInvoice statusInvoice = statusInvoiceRepository.findById(request.getStatusInvoiceId())
                 .orElseThrow(() -> new AppException(ErrorCode.STATUS_NOT_EXIST));
 
-        String employeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
+        Employee employee = authService.getCurrentEmployee();
 
         StockIn stockIn = StockIn.builder()
                 .totalProduct(request.getTotalProduct())
@@ -79,8 +77,8 @@ public class StockInService implements IStockInService {
             stockIn.setStatusInvoice(statusInvoice);
         }
 
-        String employeeId = authService.getClaimsToken().get("sub").toString();
-        if (!stockIn.getEmployee().getId().equals(employeeId)) {
+        Employee currentEmployee = authService.getCurrentEmployee();
+        if (!stockIn.getEmployee().getId().equals(currentEmployee.getId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 

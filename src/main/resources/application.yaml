@@ -7,12 +7,18 @@ server:
 
 spring:
   datasource:
-    url: ${DBMS_CONNECTION:jdbc:mysql://localhost:3306/supermarket_management}
+    url: ${DBMS_CONNECTION:jdbc:mysql://localhost:3306/supermarket_management?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DBMS_USERNAME:root}
     password: ${DBMS_PASSWORD:8082}
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    out-of-order: true
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -31,12 +37,14 @@ logging:
 
 com:
   anonymous:
-    jwt:
-      secret-key: ${JWT_SECRET_KEY}
-      valid-duration: 86400
-      refreshable-duration: 864000
-    origin-client-1: http://localhost:4200
+    origin-client-1: ${ORIGIN_CLIENT_1:http://localhost:4200}
+    origin-client-2: ${ORIGIN_CLIENT_2:http://localhost:4201}
     username-admin: ${ADMIN_USERNAME:admin1234}
     admin-password: ${ADMIN_PASSWORD:Admin@123456}
     employee-default-password: ${EMPLOYEE_DEFAULT_PASSWORD:12345678}
 
+identity:
+  service:
+    base-url: ${IDENTITY_SERVICE_URL:http://localhost:8080}
+    jwks-uri: ${IDENTITY_JWKS_URI:http://localhost:8080/.well-known/jwks.json}
+    client-id: ${IDENTITY_CLIENT_ID:supermarket-app}

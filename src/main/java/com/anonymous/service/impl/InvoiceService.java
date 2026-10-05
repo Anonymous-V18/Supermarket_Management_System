@@ -42,9 +42,7 @@ public class InvoiceService implements IInvoiceService {
         Customer customer = customerRepository.findById(invoiceInsertRequest.getCustomerId())
                 .orElseThrow(() -> new AppException(ErrorCode.CUSTOMER_NOT_EXIST));
 
-        String employeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(employeeId)
-                .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
+        Employee employee = authService.getCurrentEmployee();
 
         StatusInvoice statusInvoice = statusInvoiceRepository.findById(invoiceInsertRequest.getStatusInvoiceId())
                 .orElseThrow(() -> new AppException(ErrorCode.STATUS_NOT_EXIST));
@@ -79,8 +77,9 @@ public class InvoiceService implements IInvoiceService {
             invoice.setCustomer(customer);
         }
 
-        String employeeId = authService.getClaimsToken().get("sub").toString();
-        if (!invoice.getEmployee().getId().equals(employeeId)) {
+        Employee currentEmployee = authService.getCurrentEmployee();
+        boolean isCreator = invoice.getEmployee() != null && invoice.getEmployee().getId().equals(currentEmployee.getId());
+        if (!isCreator) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
