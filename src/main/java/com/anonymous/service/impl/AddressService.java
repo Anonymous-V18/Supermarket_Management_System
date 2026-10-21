@@ -51,31 +51,38 @@ public class AddressService implements IAddressService {
     }
 
     @Override
+    @Transactional
     public Address update(AddressUpdateRequest addressUpdateRequest) {
         String oldAddressId = addressUpdateRequest.getId();
+        // Records seeded without an address have nothing to update, so create one instead
+        if (oldAddressId == null || oldAddressId.isBlank()) {
+            AddressInsertRequest addressInsertRequest = new AddressInsertRequest();
+            addressInsertRequest.setCityId(addressUpdateRequest.getCityId());
+            addressInsertRequest.setDistrictId(addressUpdateRequest.getDistrictId());
+            addressInsertRequest.setWardId(addressUpdateRequest.getWardId());
+            addressInsertRequest.setStreet(addressUpdateRequest.getStreet());
+            return insert(addressInsertRequest);
+        }
+
         Address address = addressRepository.findById(oldAddressId)
                 .orElseThrow(() -> new AppException(ErrorCode.ADDRESS_NOT_EXIST));
 
-        City city = address.getWard() != null ? address.getWard().getCity() : address.getDistrict().getCity();
+        // Resolve from the requested city, not the stored one, so moving to another city works
+        City city = cityRepository.findById(addressUpdateRequest.getCityId())
+                .orElseThrow(() -> new AppException(ErrorCode.CITY_NOT_EXIST));
 
-        boolean isUpdateDistrict = !addressUpdateRequest.getDistrictId().equals(address.getDistrict().getId());
-        if (isUpdateDistrict) {
-            District district = city.getDistricts().stream()
-                    .filter(d -> d.getId().equals(addressUpdateRequest.getDistrictId()))
-                    .findFirst()
-                    .orElseThrow(() -> new AppException(ErrorCode.DISTRICT_NOT_EXIST));
-            address.setDistrict(district);
-        }
+        District district = city.getDistricts().stream()
+                .filter(d -> d.getId().equals(addressUpdateRequest.getDistrictId()))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.DISTRICT_NOT_EXIST));
 
-        boolean isUpdateWard = !addressUpdateRequest.getWardId().equals(address.getWard().getId());
-        if (isUpdateWard) {
-            Ward ward = address.getDistrict().getWards().stream()
-                    .filter(w -> w.getId().equals(addressUpdateRequest.getWardId()))
-                    .findFirst()
-                    .orElseThrow(() -> new AppException(ErrorCode.WARD_NOT_EXIST));
-            address.setWard(ward);
-        }
+        Ward ward = district.getWards().stream()
+                .filter(w -> w.getId().equals(addressUpdateRequest.getWardId()))
+                .findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.WARD_NOT_EXIST));
 
+        address.setDistrict(district);
+        address.setWard(ward);
         address.setStreet(addressUpdateRequest.getStreet());
         return addressRepository.save(address);
     }

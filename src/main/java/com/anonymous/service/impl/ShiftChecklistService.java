@@ -11,9 +11,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -167,10 +167,11 @@ public class ShiftChecklistService implements IShiftChecklistService {
 
     private String resolveUsername(String requestedUsername) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && !(authentication instanceof AnonymousAuthenticationToken) && authentication.isAuthenticated()) {
-            String authName = authentication.getName();
-            if (authName != null && !authName.isBlank()) {
-                return authName;
+        // JWT subject is the employee/customer id, so take the username from its own claim
+        if (authentication instanceof JwtAuthenticationToken jwtAuthentication && jwtAuthentication.isAuthenticated()) {
+            String tokenUsername = jwtAuthentication.getToken().getClaimAsString("username");
+            if (tokenUsername != null && !tokenUsername.isBlank()) {
+                return tokenUsername;
             }
         }
         if (requestedUsername != null && !requestedUsername.isBlank()) {
