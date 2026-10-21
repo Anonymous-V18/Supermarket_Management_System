@@ -1,0 +1,38 @@
+services:
+  # ==========================================================
+  # Supermarket Management Backend (Spring Boot Core)
+  # ==========================================================
+  supermarket-management:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: supermarket-management
+    restart: unless-stopped
+    ports:
+      - "9999:9999"
+    env_file:
+      - .env
+    networks:
+      - supermarket-network
+
+  # ==========================================================
+  # Supermarket Management System Frontend (Angular SSR)
+  # ==========================================================
+  supermarket-management-system-fe:
+    build:
+      context: ../Supermarket-Management-System-FE
+      dockerfile: Dockerfile
+    container_name: supermarket-management-system-fe
+    restart: unless-stopped
+    ports:
+      - "4200:4000"
+    depends_on:
+      - supermarket-management
+    networks:
+      - supermarket-network
+
+networks:
+  # Mạng nội bộ riêng của phân hệ Supermarket
+  supermarket-network:
+    name: supermarket-network
+    driver: bridge

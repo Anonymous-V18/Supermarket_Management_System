@@ -1,7 +1,8 @@
 package com.anonymous.service.impl;
 
-import com.anonymous.client.IdentityClient;
+import com.anonymous.converter.IRoleMapper;
 import com.anonymous.dto.response.RoleResponse;
+import com.anonymous.repository.IRoleRepository;
 import com.anonymous.service.IRoleService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -15,11 +16,12 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RoleService implements IRoleService {
 
-    IdentityClient identityClient;
+    IRoleRepository roleRepository;
+    IRoleMapper roleMapper;
 
     @Override
     public List<RoleResponse> findAll() {
-        return identityClient.getRoles();
+        return roleRepository.findAll().stream().map(roleMapper::toDTO).toList();
     }
 
 }

@@ -1,6 +1,5 @@
 package com.anonymous.entity;
 
-import com.anonymous.dto.response.RoleResponse;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -20,7 +19,7 @@ public class User extends AbstractEntity {
 
     @Column(name = "username", unique = true, columnDefinition = "VARCHAR(255) COLLATE utf8mb4_unicode_ci")
     String username;
-
+    String password;
     Boolean isActive;
 
     @OneToOne(mappedBy = "user")
@@ -29,8 +28,10 @@ public class User extends AbstractEntity {
     @OneToOne(mappedBy = "user")
     Employee employee;
 
-    @Transient
-    @Builder.Default
-    Set<RoleResponse> roles = new HashSet<>();
+    @ManyToMany
+    @JoinTable(name = "user_role",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    Set<Role> roles = new HashSet<>();
 
 }

@@ -45,7 +45,9 @@ public class StockOutService implements IStockOutService {
         StatusInvoice statusInvoice = statusInvoiceRepository.findById(stockOutInsertRequest.getStatusInvoiceId())
                 .orElseThrow(() -> new AppException(ErrorCode.STATUS_NOT_EXIST));
 
-        Employee employee = authService.getCurrentEmployee();
+        String employeeId = authService.getClaimsToken().get("sub").toString();
+        Employee employee = employeeRepository.findById(employeeId)
+                .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
 
         Customer customer = customerRepository.findById(stockOutInsertRequest.getCustomerId())
                 .orElseThrow(() -> new AppException(ErrorCode.CUSTOMER_NOT_EXIST));
@@ -77,8 +79,8 @@ public class StockOutService implements IStockOutService {
             stockOut.setStatusInvoice(statusInvoice);
         }
 
-        Employee currentEmployee = authService.getCurrentEmployee();
-        if (!stockOut.getEmployee().getId().equals(currentEmployee.getId())) {
+        String employeeId = authService.getClaimsToken().get("sub").toString();
+        if (!stockOut.getEmployee().getId().equals(employeeId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
