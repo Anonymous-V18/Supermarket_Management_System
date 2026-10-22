@@ -2,20 +2,24 @@ package com.anonymous.service;
 
 import com.anonymous.dto.request.StockInInsertRequest;
 import com.anonymous.dto.request.StockInUpdateRequest;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.dto.response.StockInResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 public interface IStockInService {
 
-    void insert(StockInInsertRequest stockInInsertRequest);
+    StockInResponse insert(StockInInsertRequest request);
 
-    void update(String oldStockInId, StockInUpdateRequest request);
+    StockInResponse update(String id, StockInUpdateRequest request);
 
-    void delete(String[] stockInIds);
+    void delete(String[] ids);
 
     List<StockInResponse> getAll();
 
-    StockInResponse getById(String stockInId);
-    
+    PageResponse<StockInResponse> search(String keyword, String statusCode, Pageable pageable);
+
+    StockInResponse getById(String id);
+
 }

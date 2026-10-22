@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,14 +16,14 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Customer extends AbstractEntity {
+public class Customer extends SoftDeletableEntity {
     
     String name;
     String gender;
-    Instant dob;
+    LocalDate dob;
     String phoneNumber;
     String email;
-    Double accumulatedPoints;
+    Integer accumulatedPoints;
 
     @OneToOne
     @JoinColumn(name = "user_id")

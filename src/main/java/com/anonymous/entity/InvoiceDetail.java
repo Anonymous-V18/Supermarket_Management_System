@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "invoice_detail",
         uniqueConstraints = @UniqueConstraint(columnNames = {"invoice_id", "product_id"}))
@@ -16,10 +18,11 @@ import lombok.experimental.FieldDefaults;
 public class InvoiceDetail extends AbstractEntity {
 
     Integer quantity;
-    Double inputPrice;
-    Double salePrice;
-    Double promotionalPrice;
-    Double percentDiscount;
+    // Prices are copied from the product when the line is written, so later price changes don't rewrite history
+    BigDecimal inputPrice;
+    BigDecimal salePrice;
+    BigDecimal discountPercent;
+    BigDecimal lineTotal;
 
     @ManyToOne
     @JoinColumn(name = "invoice_id")

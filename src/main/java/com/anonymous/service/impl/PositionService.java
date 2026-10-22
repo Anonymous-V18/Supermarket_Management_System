@@ -21,7 +21,7 @@ public class PositionService implements IPositionService {
 
     @Override
     public List<PositionResponse> getAll() {
-        return positionRepository.findAll().stream().map(positionMapper::toDTO).toList();
+        return positionRepository.findAllByIsDeletedFalse().stream().map(positionMapper::toDTO).toList();
     }
     
 }

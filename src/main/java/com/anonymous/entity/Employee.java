@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,13 +16,13 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Employee extends AbstractEntity {
+public class Employee extends SoftDeletableEntity {
 
-    @Column(name = "code", nullable = false, unique = true, columnDefinition = "VARCHAR(255) COLLATE utf8mb4_unicode_ci")
+    @Column(name = "code", nullable = false, unique = true, columnDefinition = "VARCHAR(20) COLLATE utf8mb4_unicode_ci")
     String code;
     String name;
     String gender;
-    Instant dob;
+    LocalDate dob;
     String phoneNumber;
     String email;
 

@@ -1,28 +1,35 @@
 package com.anonymous.service.impl;
 
 import com.anonymous.dto.request.ShiftChecklistRequest;
+import com.anonymous.dto.response.ChecklistItemResponse;
 import com.anonymous.dto.response.ShiftChecklistResponse;
+import com.anonymous.entity.ChecklistItem;
 import com.anonymous.entity.ShiftChecklist;
+import com.anonymous.entity.ShiftChecklistItem;
+import com.anonymous.entity.User;
+import com.anonymous.exception.AppException;
+import com.anonymous.exception.ErrorCode;
+import com.anonymous.repository.IChecklistItemRepository;
 import com.anonymous.repository.IShiftChecklistRepository;
+import com.anonymous.repository.IUserRepository;
 import com.anonymous.service.IShiftChecklistService;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.core.type.TypeReference;
+import com.anonymous.utils.ShiftUtil;
+import com.anonymous.utils.ShiftUtil.ShiftInfo;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,28 +38,26 @@ import java.util.List;
 public class ShiftChecklistService implements IShiftChecklistService {
 
     IShiftChecklistRepository shiftChecklistRepository;
-    ObjectMapper objectMapper = new ObjectMapper();
-
-    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final int DEFAULT_TOTAL_CHECKLIST_ITEMS = 6;
-
-    record ShiftInfo(LocalDate date, String code, String name) {}
+    IChecklistItemRepository checklistItemRepository;
+    IUserRepository userRepository;
 
     @Override
     @Transactional(readOnly = true)
-    public ShiftChecklistResponse getChecklist(LocalDate date, String shiftCode, String requestedUsername) {
-        String username = resolveUsername(requestedUsername);
-        ShiftInfo shiftInfo = resolveShift(date, shiftCode);
+    public ShiftChecklistResponse getChecklist(LocalDate date, String shiftCode) {
+        User user = currentUser();
+        ShiftInfo shiftInfo = ShiftUtil.resolve(date, shiftCode);
+        List<ChecklistItem> activeItems = checklistItemRepository.findByIsActiveTrueOrderBySortOrderAsc();
 
         return shiftChecklistRepository
-                .findByUsernameAndWorkDateAndShiftCode(username, shiftInfo.date(), shiftInfo.code())
-                .map(entity -> toResponse(entity, shiftInfo.name()))
+                .findByUserAndWorkDateAndShiftCode(user, shiftInfo.date(), shiftInfo.code())
+                .map(entity -> toResponse(entity, shiftInfo.name(), activeItems))
                 .orElseGet(() -> ShiftChecklistResponse.builder()
-                        .username(username)
+                        .username(user.getUsername())
                         .workDate(shiftInfo.date())
                         .shiftCode(shiftInfo.code())
                         .shiftName(shiftInfo.name())
                         .checkedItemIds(Collections.emptyList())
+                        .items(toItemResponses(activeItems, Collections.emptySet()))
                         .isCompleted(false)
                         .completedPercent(0)
                         .build());
@@ -60,147 +65,110 @@ public class ShiftChecklistService implements IShiftChecklistService {
 
     @Override
     @Transactional
-    public ShiftChecklistResponse saveOrUpdateChecklist(ShiftChecklistRequest request, String requestedUsername) {
-        String username = resolveUsername(requestedUsername);
-        ShiftInfo shiftInfo = resolveShift(request.getWorkDate(), request.getShiftCode());
+    public ShiftChecklistResponse saveOrUpdateChecklist(ShiftChecklistRequest request) {
+        User user = currentUser();
+        ShiftInfo shiftInfo = ShiftUtil.resolve(request.getWorkDate(), request.getShiftCode());
+        List<ChecklistItem> activeItems = checklistItemRepository.findByIsActiveTrueOrderBySortOrderAsc();
 
-        List<String> items = request.getCheckedItemIds() != null ? request.getCheckedItemIds() : new ArrayList<>();
-        String serializedItems = serializeCheckedItems(items);
-
-        int percent = calculatePercent(items);
-        boolean isCompleted = request.getIsCompleted() != null
-                ? request.getIsCompleted()
-                : (percent == 100);
+        Set<String> requestedCodes = request.getCheckedItemIds() != null
+                ? new HashSet<>(request.getCheckedItemIds())
+                : Collections.emptySet();
+        // Unknown or deactivated codes (e.g. from an outdated client) are ignored
+        List<ChecklistItem> itemsToCheck = activeItems.stream()
+                .filter(item -> requestedCodes.contains(item.getCode()))
+                .toList();
 
         ShiftChecklist entity = shiftChecklistRepository
-                .findByUsernameAndWorkDateAndShiftCode(username, shiftInfo.date(), shiftInfo.code())
+                .findByUserAndWorkDateAndShiftCode(user, shiftInfo.date(), shiftInfo.code())
                 .orElseGet(() -> ShiftChecklist.builder()
-                        .username(username)
+                        .user(user)
                         .workDate(shiftInfo.date())
                         .shiftCode(shiftInfo.code())
                         .build());
 
-        entity.setCheckedItems(serializedItems);
-        entity.setIsCompleted(isCompleted);
+        syncCheckedItems(entity, itemsToCheck);
 
-        if (request.getOpeningCash() != null) {
-            entity.setOpeningCash(request.getOpeningCash());
-        }
-        if (request.getClosingCash() != null) {
-            entity.setClosingCash(request.getClosingCash());
-        }
+        int percent = calculatePercent(itemsToCheck.size(), activeItems.size());
+        entity.setIsCompleted(request.getIsCompleted() != null ? request.getIsCompleted() : percent == 100);
         if (request.getNotes() != null) {
             entity.setNotes(request.getNotes());
         }
 
         ShiftChecklist saved = shiftChecklistRepository.save(entity);
         log.info("Saved shift checklist for user [{}] on date [{}] shift [{}] (progress: {}%)",
-                username, shiftInfo.date(), shiftInfo.code(), percent);
+                user.getUsername(), shiftInfo.date(), shiftInfo.code(), percent);
 
-        return toResponse(saved, shiftInfo.name());
+        return toResponse(saved, shiftInfo.name(), activeItems);
     }
 
-    private ShiftChecklistResponse toResponse(ShiftChecklist entity, String shiftName) {
-        List<String> items = deserializeCheckedItems(entity.getCheckedItems());
-        int percent = calculatePercent(items);
+    // Keep rows that are still checked so their created_date (time ticked) is preserved
+    private void syncCheckedItems(ShiftChecklist entity, List<ChecklistItem> itemsToCheck) {
+        Set<String> codesToCheck = itemsToCheck.stream().map(ChecklistItem::getCode).collect(Collectors.toSet());
+        entity.getCheckedItems().removeIf(row -> !codesToCheck.contains(row.getChecklistItem().getCode()));
+
+        Set<String> alreadyChecked = checkedCodesOf(entity);
+        itemsToCheck.stream()
+                .filter(item -> !alreadyChecked.contains(item.getCode()))
+                .forEach(item -> entity.getCheckedItems().add(ShiftChecklistItem.builder()
+                        .shiftChecklist(entity)
+                        .checklistItem(item)
+                        .build()));
+    }
+
+    private ShiftChecklistResponse toResponse(ShiftChecklist entity, String shiftName, List<ChecklistItem> activeItems) {
+        Set<String> checkedCodes = checkedCodesOf(entity);
+        List<String> activeCheckedCodes = activeItems.stream()
+                .map(ChecklistItem::getCode)
+                .filter(checkedCodes::contains)
+                .toList();
 
         return ShiftChecklistResponse.builder()
                 .id(entity.getId())
-                .username(entity.getUsername())
+                .username(entity.getUser().getUsername())
                 .workDate(entity.getWorkDate())
                 .shiftCode(entity.getShiftCode())
-                .shiftName(shiftName != null ? shiftName : getShiftNameByCode(entity.getShiftCode()))
-                .checkedItemIds(items)
+                .shiftName(shiftName != null ? shiftName : ShiftUtil.nameOf(entity.getShiftCode()))
+                .checkedItemIds(activeCheckedCodes)
+                .items(toItemResponses(activeItems, checkedCodes))
                 .isCompleted(Boolean.TRUE.equals(entity.getIsCompleted()))
-                .completedPercent(percent)
-                .openingCash(entity.getOpeningCash())
-                .closingCash(entity.getClosingCash())
+                .completedPercent(calculatePercent(activeCheckedCodes.size(), activeItems.size()))
                 .notes(entity.getNotes())
                 .build();
     }
 
-    private int calculatePercent(List<String> items) {
-        if (items == null || items.isEmpty()) {
+    private List<ChecklistItemResponse> toItemResponses(List<ChecklistItem> activeItems, Set<String> checkedCodes) {
+        return activeItems.stream()
+                .map(item -> ChecklistItemResponse.builder()
+                        .code(item.getCode())
+                        .label(item.getLabel())
+                        .groupCode(item.getGroupCode())
+                        .sortOrder(item.getSortOrder())
+                        .checked(checkedCodes.contains(item.getCode()))
+                        .build())
+                .toList();
+    }
+
+    private Set<String> checkedCodesOf(ShiftChecklist entity) {
+        return entity.getCheckedItems().stream()
+                .map(row -> row.getChecklistItem().getCode())
+                .collect(Collectors.toSet());
+    }
+
+    private int calculatePercent(int checkedCount, int totalCount) {
+        if (totalCount == 0) {
             return 0;
         }
-        return Math.min(100, Math.round((items.size() * 100.0f) / DEFAULT_TOTAL_CHECKLIST_ITEMS));
+        return Math.min(100, Math.round((checkedCount * 100.0f) / totalCount));
     }
 
-    private ShiftInfo resolveShift(LocalDate date, String shiftCode) {
-        ZonedDateTime now = ZonedDateTime.now(VIETNAM_ZONE);
-        int hour = now.getHour();
-
-        String resolvedCode = shiftCode;
-        if (resolvedCode == null || resolvedCode.isBlank()) {
-            if (hour >= 6 && hour < 14) {
-                resolvedCode = "MORNING";
-            } else if (hour >= 14 && hour < 22) {
-                resolvedCode = "AFTERNOON";
-            } else {
-                resolvedCode = "NIGHT";
-            }
+    // The checklist always belongs to the logged-in account (JWT "username" claim; the subject is the employee id)
+    private User currentUser() {
+        if (!(SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken authentication)) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        resolvedCode = resolvedCode.trim().toUpperCase();
-
-        LocalDate resolvedDate = date;
-        if (resolvedDate == null) {
-            resolvedDate = now.toLocalDate();
-            // Nếu là ca đêm và đang ở khung giờ 00:00 - 05:59, ca này thuộc về ngày hôm trước
-            if ("NIGHT".equals(resolvedCode) && hour < 6) {
-                resolvedDate = resolvedDate.minusDays(1);
-            }
-        }
-
-        String shiftName = getShiftNameByCode(resolvedCode);
-        return new ShiftInfo(resolvedDate, resolvedCode, shiftName);
+        String username = authentication.getToken().getClaimAsString("username");
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
     }
 
-    private String getShiftNameByCode(String code) {
-        if (code == null) return "";
-        return switch (code.toUpperCase()) {
-            case "MORNING" -> "Ca sáng (06:00 - 14:00)";
-            case "AFTERNOON" -> "Ca chiều (14:00 - 22:00)";
-            case "NIGHT" -> "Ca đêm (22:00 - 06:00)";
-            default -> code;
-        };
-    }
-
-    private String resolveUsername(String requestedUsername) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // JWT subject is the employee/customer id, so take the username from its own claim
-        if (authentication instanceof JwtAuthenticationToken jwtAuthentication && jwtAuthentication.isAuthenticated()) {
-            String tokenUsername = jwtAuthentication.getToken().getClaimAsString("username");
-            if (tokenUsername != null && !tokenUsername.isBlank()) {
-                return tokenUsername;
-            }
-        }
-        if (requestedUsername != null && !requestedUsername.isBlank()) {
-            return requestedUsername.trim();
-        }
-        return "pos_cashier";
-    }
-
-    private String serializeCheckedItems(List<String> items) {
-        if (items == null || items.isEmpty()) {
-            return "[]";
-        }
-        try {
-            return objectMapper.writeValueAsString(items);
-        } catch (Exception e) {
-            log.error("Failed to serialize checked items: {}", e.getMessage());
-            return "[]";
-        }
-    }
-
-    private List<String> deserializeCheckedItems(String json) {
-        if (json == null || json.isBlank()) {
-            return Collections.emptyList();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            log.error("Failed to deserialize checked items: {}", e.getMessage());
-            return Collections.emptyList();
-        }
-    }
 }

@@ -17,7 +17,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Position extends AbstractEntity {
+public class Position extends SoftDeletableEntity {
 
     String name;
 

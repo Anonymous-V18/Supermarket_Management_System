@@ -1,24 +1,33 @@
 package com.anonymous.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
+import com.anonymous.constant.PaymentMethod;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
+import java.math.BigDecimal;
 
+// Totals, prices and dates are computed by the server; clients only send what was sold
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public abstract class InvoiceRequest {
 
-    Double discount;
-    Double totalPrice;
-    Integer totalProduct;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss[.SSS]X")
-    Instant invoiceCreateDate;
-    String statusInvoiceId;
+    // Optional: empty means a walk-in customer
     String customerId;
+
+    // Optional on create (defaults to PENDING)
+    String statusInvoiceId;
+
+    // Invoice-level discount in money
+    @DecimalMin(value = "0", message = "Giảm giá không được âm")
+    BigDecimal discount = BigDecimal.ZERO;
+
+    PaymentMethod paymentMethod = PaymentMethod.CASH;
+
+    @DecimalMin(value = "0", message = "Tiền khách đưa không được âm")
+    BigDecimal amountPaid;
 
 }

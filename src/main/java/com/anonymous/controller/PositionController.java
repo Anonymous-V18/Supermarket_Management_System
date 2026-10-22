@@ -1,11 +1,13 @@
 package com.anonymous.controller;
 
+import com.anonymous.constant.Permissions;
 import com.anonymous.dto.response.ApiResponse;
 import com.anonymous.dto.response.PositionResponse;
 import com.anonymous.service.IPositionService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +23,7 @@ public class PositionController {
     IPositionService positionService;
 
     @GetMapping("/show-all-no-param")
+    @PreAuthorize(Permissions.AUTHENTICATED)
     public ApiResponse<List<PositionResponse>> showAll() {
         List<PositionResponse> response = positionService.getAll();
         return ApiResponse.<List<PositionResponse>>builder()

@@ -21,6 +21,6 @@ public class BrandService implements IBrandService {
 
     @Override
     public List<BrandResponse> getAll() {
-        return brandRepository.findAll().stream().map(brandMapper::toDTO).toList();
+        return brandRepository.findAllByIsDeletedFalse().stream().map(brandMapper::toDTO).toList();
     }
 }

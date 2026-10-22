@@ -35,7 +35,7 @@ public class UserService implements IUserService {
     IAuthService authService;
 
     @NonFinal
-    @Value("${com.anonymous.employee-default-password:12345678}")
+    @Value("${com.anonymous.employee-default-password}")
     String defaultPassword;
 
     @Override

@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 @Entity
 @Table(name = "stock_in_detail",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"stock_in_id", "product_id"})})
@@ -16,8 +19,15 @@ import lombok.experimental.FieldDefaults;
 public class StockInDetail extends AbstractEntity {
 
     Integer quantity;
-    Double inputPrice;
-    Double salePrice;
+    BigDecimal inputPrice;
+    BigDecimal salePrice;
+
+    // Optional: only products that expire carry a lot and an expiry date
+    @Column(name = "lot_number", length = 50)
+    String lotNumber;
+
+    @Column(name = "expiry_date")
+    LocalDate expiryDate;
 
     @ManyToOne
     @JoinColumn(name = "stock_in_id")

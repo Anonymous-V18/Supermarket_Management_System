@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,8 +17,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
@@ -30,12 +31,9 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class WebSecurityConfig {
 
+    // Everything else needs a valid token; each endpoint also states its roles with @PreAuthorize
     static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/**", "/auth/**", "/users/**", "/login", "/logout", "/register", "/introspect-token", "/refresh-token"
-            , "/roles/**", "/customers/**", "/employees/**", "/warehouses/**", "/suppliers/**"
-            , "/product-categories/**", "/units/**", "/stock-ins/**", "/stock-outs/**"
-            , "/brands/**", "/positions/**", "/wards/**", "/districts/**", "/cities/**"
-            , "/products/**", "/invoices/**", "/promotions/**", "/status-invoices/**", "/status-products/**", "/dashboard/**"
+            "/auth/login", "/auth/logout", "/auth/refresh-token", "/auth/introspect-token", "/users/register"
     };
 
     final JwtDecoderCustom jwtDecoderCustom;
@@ -58,6 +56,9 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
+                // CORS inside the security chain, so browser preflight (OPTIONS) requests are answered
+                // before authentication instead of being rejected with 401
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
@@ -85,7 +86,7 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public CorsFilter corsFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedHeaders(List.of("*"));
@@ -96,7 +97,7 @@ public class WebSecurityConfig {
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", configuration);
 
-        return new CorsFilter(urlBasedCorsConfigurationSource);
+        return urlBasedCorsConfigurationSource;
     }
 
 }

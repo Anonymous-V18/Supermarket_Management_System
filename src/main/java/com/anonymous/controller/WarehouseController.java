@@ -1,11 +1,15 @@
 package com.anonymous.controller;
 
+import com.anonymous.constant.Permissions;
 import com.anonymous.dto.request.WarehouseInsertRequest;
 import com.anonymous.dto.request.WarehouseUpdateRequest;
 import com.anonymous.dto.response.ApiResponse;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.dto.response.WarehouseResponse;
 import com.anonymous.dto.response.WarehouseToSelectionResponse;
 import com.anonymous.service.IWarehouseService;
+import com.anonymous.utils.PageUtil;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,8 +27,8 @@ public class WarehouseController {
     IWarehouseService warehouseService;
 
     @PostMapping("/insert")
-    @PreAuthorize("hasAnyRole('ADMIN','STOREKEEPER')")
-    public ApiResponse<WarehouseResponse> insert(@RequestBody WarehouseInsertRequest request) {
+    @PreAuthorize(Permissions.ADMIN)
+    public ApiResponse<WarehouseResponse> insert(@RequestBody @Valid WarehouseInsertRequest request) {
         WarehouseResponse response = warehouseService.insert(request);
         return ApiResponse.<WarehouseResponse>builder()
                 .result(response)
@@ -32,9 +36,9 @@ public class WarehouseController {
     }
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STOREKEEPER')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<WarehouseResponse> update(@PathVariable(value = "id") String oldWarehouseId,
-                                                 @RequestBody WarehouseUpdateRequest request) {
+                                                 @RequestBody @Valid WarehouseUpdateRequest request) {
         WarehouseResponse response = warehouseService.update(oldWarehouseId, request);
         return ApiResponse.<WarehouseResponse>builder()
                 .result(response)
@@ -42,6 +46,7 @@ public class WarehouseController {
     }
 
     @GetMapping("/show-all-no-param")
+    @PreAuthorize(Permissions.AUTHENTICATED)
     public ApiResponse<List<WarehouseResponse>> showAll() {
         List<WarehouseResponse> response = warehouseService.getAll();
         return ApiResponse.<List<WarehouseResponse>>builder()
@@ -50,6 +55,7 @@ public class WarehouseController {
     }
 
     @GetMapping("/get-all-to-selection")
+    @PreAuthorize(Permissions.AUTHENTICATED)
     public ApiResponse<List<WarehouseToSelectionResponse>> getAllToSelection() {
         List<WarehouseToSelectionResponse> response = warehouseService.getAllToSelection();
         return ApiResponse.<List<WarehouseToSelectionResponse>>builder()
@@ -58,10 +64,25 @@ public class WarehouseController {
     }
 
     @GetMapping("get-detail")
+    @PreAuthorize(Permissions.AUTHENTICATED)
     public ApiResponse<WarehouseResponse> getDetail(@RequestParam(value = "warehouseId") String warehouseId) {
         WarehouseResponse response = warehouseService.getById(warehouseId);
         return ApiResponse.<WarehouseResponse>builder()
                 .result(response)
                 .build();
     }
+
+    @GetMapping("/search")
+    @PreAuthorize(Permissions.AUTHENTICATED)
+    public ApiResponse<PageResponse<WarehouseResponse>> search(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        PageResponse<WarehouseResponse> response = warehouseService.search(keyword, PageUtil.newestFirst(page, size));
+        return ApiResponse.<PageResponse<WarehouseResponse>>builder()
+                .result(response)
+                .build();
+    }
+
 }

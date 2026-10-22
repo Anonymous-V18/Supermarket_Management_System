@@ -22,9 +22,6 @@ public class Ward extends AbstractEntity {
     @OneToMany(mappedBy = "ward")
     Set<Address> addresses = new HashSet<>();
 
-    @ManyToOne
-    @JoinColumn(name = "city_id")
-    City city;
 
     @ManyToOne
     @JoinColumn(name = "district_id")

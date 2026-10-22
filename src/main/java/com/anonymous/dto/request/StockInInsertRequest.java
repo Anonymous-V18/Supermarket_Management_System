@@ -1,5 +1,8 @@
 package com.anonymous.dto.request;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,8 +16,14 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StockInInsertRequest extends StockInRequest {
 
+    @NotBlank(message = "Vui lòng chọn nhà cung cấp")
     String supplierId;
+
+    @NotBlank(message = "Vui lòng chọn kho")
     String warehouseId;
+
+    @NotEmpty(message = "Phiếu nhập phải có ít nhất một sản phẩm")
+    @Valid
     Set<StockInDetailInsertRequest> stockInDetailInsertRequests = new HashSet<>();
 
 }

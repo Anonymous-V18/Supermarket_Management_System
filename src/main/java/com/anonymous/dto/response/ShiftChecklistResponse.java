@@ -28,13 +28,12 @@ public class ShiftChecklistResponse {
 
     List<String> checkedItemIds;
 
+    // Every active task in display order, with whether it is checked in this shift
+    List<ChecklistItemResponse> items;
+
     Boolean isCompleted;
 
     Integer completedPercent;
-
-    Double openingCash;
-
-    Double closingCash;
 
     String notes;
 

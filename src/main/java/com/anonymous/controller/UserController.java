@@ -1,9 +1,11 @@
 package com.anonymous.controller;
 
+import com.anonymous.constant.Permissions;
 import com.anonymous.dto.request.UserChangePasswordRequest;
 import com.anonymous.dto.request.UserInsertRequest;
 import com.anonymous.dto.response.ApiResponse;
 import com.anonymous.service.IUserService;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -19,27 +21,28 @@ public class UserController {
     IUserService userService;
 
     @PostMapping("/register")
-    public ApiResponse<String> register(@RequestBody UserInsertRequest request) {
+    public ApiResponse<String> register(@RequestBody @Valid UserInsertRequest request) {
         userService.register(request);
         return ApiResponse.<String>builder()
-                .message("Register successfully !")
+                .message("Đăng ký thành công !")
                 .build();
     }
 
     @PatchMapping("/update/{id}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<String> resetPassword(@PathVariable(value = "id") String userId) {
         userService.resetPassword(userId);
         return ApiResponse.<String>builder()
-                .message("Reset password successfully !")
+                .message("Đặt lại mật khẩu thành công !")
                 .build();
     }
 
     @PatchMapping("/update/change-password")
-    public ApiResponse<String> changePassword(@RequestBody UserChangePasswordRequest request) {
+    @PreAuthorize(Permissions.AUTHENTICATED)
+    public ApiResponse<String> changePassword(@RequestBody @Valid UserChangePasswordRequest request) {
         userService.changePassword(request);
         return ApiResponse.<String>builder()
-                .message("Change password successfully !")
+                .message("Đổi mật khẩu thành công !")
                 .build();
     }
 

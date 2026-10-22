@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -17,13 +18,25 @@ import java.util.Set;
 public class StockInResponse {
 
     String id;
+
+    String code;
+
+    Instant createdDate;
+
     Integer totalProduct;
-    Double totalPrice;
+
+    BigDecimal totalPrice;
+
     Instant stockInDate;
+
     StatusInvoiceResponse statusInvoice;
+
     SupplierResponse supplier;
+
     WarehouseResponse warehouse;
+
     EmployeeResponse employee;
+
     Set<StockInDetailResponse> stockInDetails = new HashSet<>();
 
 }

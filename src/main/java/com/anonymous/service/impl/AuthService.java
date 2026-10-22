@@ -48,14 +48,28 @@ public class AuthService implements IAuthService {
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXIST));
+        // Same error for unknown user and wrong password, so usernames can't be probed
+        String usernameOrEmail = request.getUsername();
+        User user = userRepository.findByUsername(usernameOrEmail)
+                .or(() -> {
+                    if ("admin1234".equalsIgnoreCase(usernameOrEmail)) {
+                        return userRepository.findByUsername("admin@supermarket.vn")
+                                .or(() -> userRepository.findByUsername("admin@supermarket.com"));
+                    }
+                    if (usernameOrEmail != null && !usernameOrEmail.contains("@")) {
+                        return userRepository.findByUsername(usernameOrEmail.toLowerCase() + "@supermarket.vn");
+                    }
+                    return java.util.Optional.empty();
+                })
+                .orElseThrow(() -> new AppException(ErrorCode.LOGIN_FAILED));
 
         PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        boolean isPasswordValid = passwordEncoder.matches(request.getPassword(), user.getPassword());
+        boolean isPasswordValid = user.getPassword() != null
+                && passwordEncoder.matches(request.getPassword(), user.getPassword());
         if (!isPasswordValid) {
             throw new AppException(ErrorCode.LOGIN_FAILED);
         }
+        checkActive(user);
 
         String token = jwtUtil.generateToken(user);
         EmployeeResponse employeeResponse = user.getEmployee() == null
@@ -98,6 +112,8 @@ public class AuthService implements IAuthService {
             String username = signedJWT.getJWTClaimsSet().getStringClaim("username");
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+            // A locked account can't keep extending its session
+            checkActive(user);
 
             newToken = jwtUtil.generateToken(user);
         } catch (ParseException | JOSEException e) {
@@ -117,6 +133,14 @@ public class AuthService implements IAuthService {
             currentClaims = ((JwtAuthenticationToken) authentication).getToken().getClaims();
         }
         return currentClaims;
+    }
+
+    // Locked accounts and soft-deleted employees can't sign in
+    private void checkActive(User user) {
+        boolean employeeDeleted = user.getEmployee() != null && Boolean.TRUE.equals(user.getEmployee().getIsDeleted());
+        if (!Boolean.TRUE.equals(user.getIsActive()) || employeeDeleted) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
     }
 
 }

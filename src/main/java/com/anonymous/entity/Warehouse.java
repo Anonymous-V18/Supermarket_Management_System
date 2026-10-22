@@ -16,7 +16,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Warehouse extends AbstractEntity {
+public class Warehouse extends SoftDeletableEntity {
 
     String name;
     String email;

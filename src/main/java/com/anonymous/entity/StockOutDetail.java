@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "stock_out_detail", uniqueConstraints = @UniqueConstraint(columnNames = {"stock_out_id", "product_id"}))
 @Getter
@@ -15,9 +17,9 @@ import lombok.experimental.FieldDefaults;
 public class StockOutDetail extends AbstractEntity {
 
     Integer quantity;
-    Double inputPrice;
-    Double salePrice;
-    Double totalPrice;
+    BigDecimal inputPrice;
+    BigDecimal salePrice;
+    BigDecimal totalPrice;
 
     @ManyToOne
     @JoinColumn(name = "stock_out_id")

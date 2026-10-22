@@ -17,7 +17,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Unit extends AbstractEntity {
+public class Unit extends SoftDeletableEntity {
 
     String name;
     String code;

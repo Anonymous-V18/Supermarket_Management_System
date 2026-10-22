@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -13,15 +15,33 @@ import lombok.experimental.FieldDefaults;
 public class ProductResponse {
 
     String id;
+
+    String code;
+
+    String barcode;
+
     String name;
+
     String description;
+
     String details;
-    Double vat;
+
+    BigDecimal vat;
+
     Integer warranty;
+
     String image;
+
+    BigDecimal salePrice;
+
+    Integer minStock;
+
     ProductCategoryResponse productCategory;
+
     SupplierResponse supplier;
+
     UnitResponse unit;
+
     BrandResponse brand;
-    
+
 }

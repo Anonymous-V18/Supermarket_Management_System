@@ -5,29 +5,36 @@ import com.anonymous.dto.request.EmployeeInsertRequest;
 import com.anonymous.dto.request.EmployeeUpdateRequest;
 import com.anonymous.dto.request.UserInsertRequest;
 import com.anonymous.dto.response.EmployeeResponse;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.entity.Address;
 import com.anonymous.entity.Employee;
 import com.anonymous.entity.Position;
+import com.anonymous.entity.Role;
 import com.anonymous.entity.User;
 import com.anonymous.exception.AppException;
 import com.anonymous.exception.ErrorCode;
 import com.anonymous.repository.IEmployeeRepository;
 import com.anonymous.repository.IPositionRepository;
 import com.anonymous.repository.impl.EmployeeRepositoryImpl;
+import com.anonymous.repository.specification.SearchSpecs;
 import com.anonymous.service.IAddressService;
 import com.anonymous.service.IAuthService;
+import com.anonymous.service.ICodeGeneratorService;
 import com.anonymous.service.IEmployeeService;
 import com.anonymous.service.IUserService;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -41,6 +48,7 @@ public class EmployeeService implements IEmployeeService {
     IAuthService authService;
     IAddressService addressService;
     IUserService userService;
+    ICodeGeneratorService codeGeneratorService;
     EmployeeRepositoryImpl employeeRepositoryImpl;
     @NonFinal
     @Value("${com.anonymous.employee-default-password}")
@@ -51,7 +59,7 @@ public class EmployeeService implements IEmployeeService {
     public EmployeeResponse insert(EmployeeInsertRequest employeeInsertRequest) {
         Employee employee = employeeMapper.toEntity(employeeInsertRequest);
 
-        Position position = positionRepository.findById(employeeInsertRequest.getPositionId())
+        Position position = positionRepository.findByIdAndIsDeletedFalse(employeeInsertRequest.getPositionId())
                 .orElseThrow(() -> new AppException(ErrorCode.POSITION_NOT_EXIST));
         employee.setPosition(position);
 
@@ -65,8 +73,7 @@ public class EmployeeService implements IEmployeeService {
         Address address = addressService.insert(employeeInsertRequest.getNewAddress());
         employee.setAddress(address);
 
-        String code = generateEmployeeCode();
-        employee.setCode(code);
+        employee.setCode(codeGeneratorService.next(ICodeGeneratorService.SEQUENCE_EMPLOYEE));
 
         employee = employeeRepository.save(employee);
         return employeeMapper.toDTO(employee);
@@ -75,7 +82,7 @@ public class EmployeeService implements IEmployeeService {
     @Override
     public EmployeeResponse update(EmployeeUpdateRequest employeeUpdateRequest) {
         String currentEmployeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(currentEmployeeId)
+        Employee employee = employeeRepository.findByIdAndIsDeletedFalse(currentEmployeeId)
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         employee = employeeMapper.toEntity(employee, employeeUpdateRequest);
 
@@ -88,13 +95,13 @@ public class EmployeeService implements IEmployeeService {
 
     @Override
     public EmployeeResponse update(String oldEmployeeId, EmployeeUpdateRequest employeeUpdateRequest) {
-        Employee employee = employeeRepository.findById(oldEmployeeId)
+        Employee employee = employeeRepository.findByIdAndIsDeletedFalse(oldEmployeeId)
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         employee = employeeMapper.toEntity(employee, employeeUpdateRequest);
 
         boolean isUpdatePosition = !employeeUpdateRequest.getPositionId().equals(employee.getPosition().getId());
         if (isUpdatePosition) {
-            Position position = positionRepository.findById(employeeUpdateRequest.getPositionId())
+            Position position = positionRepository.findByIdAndIsDeletedFalse(employeeUpdateRequest.getPositionId())
                     .orElseThrow(() -> new AppException(ErrorCode.POSITION_NOT_EXIST));
             employee.setPosition(position);
         }
@@ -112,7 +119,7 @@ public class EmployeeService implements IEmployeeService {
     @Override
     public List<EmployeeResponse> getAll() {
         String currentUsername = authService.getClaimsToken().get("username").toString();
-        return employeeRepository.findAll().stream()
+        return employeeRepository.findAllByIsDeletedFalse().stream()
                 .filter(employee -> {
                     User user = employee.getUser();
                     if (user == null) {
@@ -127,14 +134,9 @@ public class EmployeeService implements IEmployeeService {
                 .toList();
     }
 
-    private String generateEmployeeCode() {
-        LocalDateTime localDateTime = LocalDateTime.now();
-        return localDateTime.format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
-    }
-
     @Override
     public EmployeeResponse getById(String employeeId) {
-        Employee employee = employeeRepository.findById(employeeId)
+        Employee employee = employeeRepository.findByIdAndIsDeletedFalse(employeeId)
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         return employeeMapper.toDTO(employee);
     }
@@ -142,7 +144,7 @@ public class EmployeeService implements IEmployeeService {
     @Override
     public EmployeeResponse getMyInfo() {
         String currentEmployeeId = authService.getClaimsToken().get("sub").toString();
-        Employee employee = employeeRepository.findById(currentEmployeeId)
+        Employee employee = employeeRepository.findByIdAndIsDeletedFalse(currentEmployeeId)
                 .orElseThrow(() -> new AppException(ErrorCode.EMPLOYEE_NOT_EXIST));
         return employeeMapper.toDTO(employee);
     }
@@ -152,4 +154,24 @@ public class EmployeeService implements IEmployeeService {
         List<Employee> employees = employeeRepositoryImpl.searchCriteria(page, limit, sortBy, search);
         return employees.stream().map(employeeMapper::toDTO).toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<EmployeeResponse> search(String keyword, Pageable pageable) {
+        String currentUsername = authService.getClaimsToken().get("username").toString();
+        Specification<Employee> manageable = (root, query, cb) -> {
+            Join<Employee, User> user = root.join("user");
+            Subquery<String> admins = query.subquery(String.class);
+            Root<User> adminUser = admins.from(User.class);
+            Join<User, Role> role = adminUser.join("roles");
+            admins.select(adminUser.get("id")).where(cb.equal(role.get("code"), "ADMIN"));
+            return cb.and(cb.notEqual(user.get("username"), currentUsername), cb.not(user.get("id").in(admins)));
+        };
+        return PageResponse.of(employeeRepository.findAll(SearchSpecs.allOf(
+                SearchSpecs.notDeleted(),
+                manageable,
+                SearchSpecs.keyword(keyword, "code", "name", "phoneNumber", "email")
+        ), pageable), employeeMapper::toDTO);
+    }
+
 }

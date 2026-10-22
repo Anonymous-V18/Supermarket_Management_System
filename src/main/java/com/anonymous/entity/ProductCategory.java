@@ -17,7 +17,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProductCategory extends AbstractEntity {
+public class ProductCategory extends SoftDeletableEntity {
 
     String name;
     String code;

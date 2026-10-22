@@ -37,7 +37,7 @@ public class AuthController {
     public ApiResponse<String> logout(@RequestBody LogoutRequest request) {
         authService.logout(request);
         return ApiResponse.<String>builder()
-                .message("Logout successfully ! - Đăng xuất thành công !")
+                .message("Đăng xuất thành công !")
                 .build();
     }
 

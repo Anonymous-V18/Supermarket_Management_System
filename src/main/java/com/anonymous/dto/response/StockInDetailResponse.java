@@ -1,10 +1,14 @@
 package com.anonymous.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -13,9 +17,18 @@ import lombok.experimental.FieldDefaults;
 public class StockInDetailResponse {
 
     String id;
+
     Integer quantity;
-    Double inputPrice;
-    Double salePrice;
+
+    BigDecimal inputPrice;
+
+    BigDecimal salePrice;
+
+    String lotNumber;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    LocalDate expiryDate;
+
     ProductResponse product;
 
 }

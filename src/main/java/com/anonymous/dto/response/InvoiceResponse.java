@@ -1,11 +1,13 @@
 package com.anonymous.dto.response;
 
+import com.anonymous.constant.PaymentMethod;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -17,16 +19,35 @@ import java.util.Set;
 public class InvoiceResponse {
 
     String id;
+
+    String code;
+
     Instant createdDate;
+
     Instant modifiedDate;
+
     Instant invoiceCreateDate;
-    Double discount;
+
+    BigDecimal discount;
+
     Integer totalProduct;
-    Double totalPrice;
+
+    BigDecimal totalPrice;
+
+    PaymentMethod paymentMethod;
+
+    BigDecimal amountPaid;
+
+    BigDecimal changeAmount;
+
     StatusInvoiceResponse statusInvoice;
+
     Set<InvoiceDetailResponse> invoiceDetails = new HashSet<>();
+
     CustomerResponse customer;
+
     EmployeeResponse employee;
+
     WarehouseResponse warehouse;
 
 }

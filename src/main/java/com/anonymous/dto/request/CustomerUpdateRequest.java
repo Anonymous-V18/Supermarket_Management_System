@@ -1,5 +1,7 @@
 package com.anonymous.dto.request;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +12,8 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CustomerUpdateRequest extends CustomerRequest {
 
+    @NotNull(message = "Vui lòng nhập địa chỉ")
+    @Valid
     AddressUpdateRequest currentAddress;
 
 }

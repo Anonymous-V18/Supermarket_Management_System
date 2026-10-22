@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,10 +17,13 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class StockOut extends AbstractEntity {
+public class StockOut extends SoftDeletableEntity {
+
+    @Column(name = "code", nullable = false, unique = true, length = 20)
+    String code;
 
     Integer totalProduct;
-    Double totalPrice;
+    BigDecimal totalPrice;
     String reason;
     Instant stockOutDate;
 
@@ -28,6 +32,7 @@ public class StockOut extends AbstractEntity {
     StatusInvoice statusInvoice;
 
     @OneToMany(mappedBy = "stockOut")
+    @Builder.Default
     Set<StockOutDetail> stockOutDetails = new HashSet<>();
 
     @ManyToOne

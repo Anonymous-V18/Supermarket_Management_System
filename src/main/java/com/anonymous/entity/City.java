@@ -26,7 +26,5 @@ public class City extends AbstractEntity {
     @OneToMany(mappedBy = "city")
     Set<District> districts = new HashSet<>();
 
-    @OneToMany(mappedBy = "city")
-    Set<Ward> wards = new HashSet<>();
 
 }

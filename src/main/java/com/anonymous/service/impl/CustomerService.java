@@ -4,19 +4,23 @@ import com.anonymous.converter.ICustomerMapper;
 import com.anonymous.dto.request.CustomerInsertRequest;
 import com.anonymous.dto.request.CustomerUpdateRequest;
 import com.anonymous.dto.response.CustomerResponse;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.entity.Address;
 import com.anonymous.entity.Customer;
 import com.anonymous.entity.User;
 import com.anonymous.exception.AppException;
 import com.anonymous.exception.ErrorCode;
 import com.anonymous.repository.ICustomerRepository;
+import com.anonymous.repository.specification.SearchSpecs;
 import com.anonymous.service.IAddressService;
 import com.anonymous.service.ICustomerService;
 import com.anonymous.service.IUserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -40,7 +44,7 @@ public class CustomerService implements ICustomerService {
         Address address = addressService.insert(customerInsertRequest.getNewAddress());
         customer.setAddress(address);
 
-        customer.setAccumulatedPoints(0.0);
+        customer.setAccumulatedPoints(0);
 
         customer = customerRepository.save(customer);
         return customerMapper.toDTO(customer);
@@ -48,7 +52,7 @@ public class CustomerService implements ICustomerService {
 
     @Override
     public CustomerResponse update(String oldCustomerId, CustomerUpdateRequest customerUpdateRequest) {
-        Customer customer = customerRepository.findById(oldCustomerId)
+        Customer customer = customerRepository.findByIdAndIsDeletedFalse(oldCustomerId)
                 .orElseThrow(() -> new AppException(ErrorCode.CUSTOMER_NOT_EXIST));
 
         customer = customerMapper.toEntity(customer, customerUpdateRequest);
@@ -62,7 +66,16 @@ public class CustomerService implements ICustomerService {
 
     @Override
     public List<CustomerResponse> getAll() {
-        return customerRepository.findAll().stream().map(customerMapper::toDTO).toList();
+        return customerRepository.findAllByIsDeletedFalse().stream().map(customerMapper::toDTO).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<CustomerResponse> search(String keyword, Pageable pageable) {
+        return PageResponse.of(customerRepository.findAll(SearchSpecs.allOf(
+                SearchSpecs.notDeleted(),
+                SearchSpecs.keyword(keyword, "name", "phoneNumber", "email")
+        ), pageable), customerMapper::toDTO);
     }
 
 }

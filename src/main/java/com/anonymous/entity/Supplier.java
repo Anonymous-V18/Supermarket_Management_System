@@ -16,7 +16,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Supplier extends AbstractEntity {
+public class Supplier extends SoftDeletableEntity {
 
     String name;
     String email;

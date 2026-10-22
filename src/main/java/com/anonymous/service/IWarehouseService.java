@@ -2,8 +2,10 @@ package com.anonymous.service;
 
 import com.anonymous.dto.request.WarehouseInsertRequest;
 import com.anonymous.dto.request.WarehouseUpdateRequest;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.dto.response.WarehouseResponse;
 import com.anonymous.dto.response.WarehouseToSelectionResponse;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -18,4 +20,7 @@ public interface IWarehouseService {
     List<WarehouseToSelectionResponse> getAllToSelection();
 
     WarehouseResponse getById(String warehouseId);
+
+    PageResponse<WarehouseResponse> search(String keyword, Pageable pageable);
+
 }

@@ -1,5 +1,6 @@
 package com.anonymous.dto.request;
 
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,10 +23,7 @@ public class ShiftChecklistRequest {
 
     Boolean isCompleted;
 
-    Double openingCash;
-
-    Double closingCash;
-
+    @Size(max = 2000, message = "Ghi chú tối đa 2000 ký tự")
     String notes;
 
 }

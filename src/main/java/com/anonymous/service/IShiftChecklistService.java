@@ -7,8 +7,8 @@ import java.time.LocalDate;
 
 public interface IShiftChecklistService {
 
-    ShiftChecklistResponse getChecklist(LocalDate date, String shiftCode, String requestedUsername);
+    ShiftChecklistResponse getChecklist(LocalDate date, String shiftCode);
 
-    ShiftChecklistResponse saveOrUpdateChecklist(ShiftChecklistRequest request, String requestedUsername);
+    ShiftChecklistResponse saveOrUpdateChecklist(ShiftChecklistRequest request);
 
 }

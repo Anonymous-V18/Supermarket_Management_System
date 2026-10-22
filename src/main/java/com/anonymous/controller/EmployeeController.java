@@ -1,10 +1,14 @@
 package com.anonymous.controller;
 
+import com.anonymous.constant.Permissions;
 import com.anonymous.dto.request.EmployeeInsertRequest;
 import com.anonymous.dto.request.EmployeeUpdateRequest;
 import com.anonymous.dto.response.ApiResponse;
 import com.anonymous.dto.response.EmployeeResponse;
+import com.anonymous.dto.response.PageResponse;
 import com.anonymous.service.IEmployeeService;
+import com.anonymous.utils.PageUtil;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -22,8 +26,8 @@ public class EmployeeController {
     IEmployeeService employeeService;
 
     @PostMapping("/insert")
-    @PreAuthorize("hasAnyRole('ADMIN')")
-    public ApiResponse<EmployeeResponse> insert(@RequestBody EmployeeInsertRequest request) {
+    @PreAuthorize(Permissions.ADMIN)
+    public ApiResponse<EmployeeResponse> insert(@RequestBody @Valid EmployeeInsertRequest request) {
         EmployeeResponse response = employeeService.insert(request);
         return ApiResponse.<EmployeeResponse>builder()
                 .result(response)
@@ -31,8 +35,8 @@ public class EmployeeController {
     }
 
     @PutMapping("/update")
-    @PreAuthorize("hasAnyRole('EMPLOYEE')")
-    public ApiResponse<EmployeeResponse> update(@RequestBody EmployeeUpdateRequest request) {
+    @PreAuthorize(Permissions.AUTHENTICATED)
+    public ApiResponse<EmployeeResponse> update(@RequestBody @Valid EmployeeUpdateRequest request) {
         EmployeeResponse response = employeeService.update(request);
         return ApiResponse.<EmployeeResponse>builder()
                 .result(response)
@@ -40,9 +44,9 @@ public class EmployeeController {
     }
 
     @PutMapping("/update/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<EmployeeResponse> update(@PathVariable(value = "id") String oldEmployeeId,
-                                                @RequestBody EmployeeUpdateRequest request) {
+                                                @RequestBody @Valid EmployeeUpdateRequest request) {
         EmployeeResponse response = employeeService.update(oldEmployeeId, request);
         return ApiResponse.<EmployeeResponse>builder()
                 .result(response)
@@ -50,7 +54,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/show-all-no-param")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<List<EmployeeResponse>> showAll() {
         List<EmployeeResponse> response = employeeService.getAll();
         return ApiResponse.<List<EmployeeResponse>>builder()
@@ -59,7 +63,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/get-detail")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<EmployeeResponse> getDetail(@RequestParam(value = "employeeId") String employeeId) {
         EmployeeResponse response = employeeService.getById(employeeId);
         return ApiResponse.<EmployeeResponse>builder()
@@ -68,7 +72,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/get-my-info")
-    @PreAuthorize("hasAnyRole('EMPLOYEE','STOREKEEPER','SALESMAN','ACCOUNTING_STAFF','ADMIN')")
+    @PreAuthorize(Permissions.AUTHENTICATED)
     public ApiResponse<EmployeeResponse> getMyInfo() {
         EmployeeResponse response = employeeService.getMyInfo();
         return ApiResponse.<EmployeeResponse>builder()
@@ -77,13 +81,26 @@ public class EmployeeController {
     }
 
     @GetMapping("/get-all-employees")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize(Permissions.ADMIN)
     public ApiResponse<List<EmployeeResponse>> searchCriteria(@RequestParam(value = "page") int page,
                                                               @RequestParam(value = "limit") int limit,
                                                               @RequestParam(value = "sortBy") String sortBy,
                                                               @RequestParam(value = "search", required = false) String... search) {
         List<EmployeeResponse> response = employeeService.getBySearchCriteria(page, limit, sortBy, search);
         return ApiResponse.<List<EmployeeResponse>>builder()
+                .result(response)
+                .build();
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize(Permissions.ADMIN)
+    public ApiResponse<PageResponse<EmployeeResponse>> search(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size
+    ) {
+        PageResponse<EmployeeResponse> response = employeeService.search(keyword, PageUtil.newestFirst(page, size));
+        return ApiResponse.<PageResponse<EmployeeResponse>>builder()
                 .result(response)
                 .build();
     }

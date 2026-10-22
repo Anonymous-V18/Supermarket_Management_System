@@ -4,11 +4,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "warehouse_product")
+@Table(name = "warehouse_product",
+        uniqueConstraints = @UniqueConstraint(name = "uk_warehouse_product", columnNames = {"warehouse_id", "product_id"}))
 @Getter
 @Setter
 @Builder

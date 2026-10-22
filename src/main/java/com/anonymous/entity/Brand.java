@@ -17,7 +17,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Brand extends AbstractEntity {
+public class Brand extends SoftDeletableEntity {
 
     String name;
     String code;

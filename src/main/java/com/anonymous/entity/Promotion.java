@@ -18,7 +18,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Promotion extends AbstractEntity {
+public class Promotion extends SoftDeletableEntity {
 
     Instant startDate;
     Instant endDate;

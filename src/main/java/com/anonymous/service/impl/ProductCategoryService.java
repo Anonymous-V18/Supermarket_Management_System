@@ -21,7 +21,7 @@ public class ProductCategoryService implements IProductCategoryService {
 
     @Override
     public List<ProductCategoryResponse> getAll() {
-        return productCategoryRepository.findAll().stream().map(productCategoryMapper::toDTO).toList();
+        return productCategoryRepository.findAllByIsDeletedFalse().stream().map(productCategoryMapper::toDTO).toList();
     }
 
 }

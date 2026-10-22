@@ -1,12 +1,13 @@
 package com.anonymous.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -15,14 +16,24 @@ import java.time.Instant;
 public class EmployeeResponse {
 
     String id;
+
     String code;
+
     String name;
+
     String gender;
-    Instant dob;
+
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    LocalDate dob;
+
     String phoneNumber;
+
     String email;
+
     PositionResponse position;
+
     AddressResponse address;
+
     UserResponse user;
 
 }

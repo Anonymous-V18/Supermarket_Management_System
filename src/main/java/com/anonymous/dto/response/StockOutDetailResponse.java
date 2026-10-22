@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -13,9 +15,15 @@ import lombok.experimental.FieldDefaults;
 public class StockOutDetailResponse {
 
     String id;
+
     Integer quantity;
-    Double inputPrice;
-    Double salePrice;
+
+    BigDecimal inputPrice;
+
+    BigDecimal salePrice;
+
+    BigDecimal totalPrice;
+
     ProductResponse product;
 
 }

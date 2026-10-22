@@ -33,7 +33,8 @@ public class EmployeeRepositoryImpl {
         CriteriaQuery<Employee> criteriaQuery = criteriaBuilder.createQuery(Employee.class);
         Root<Employee> root = criteriaQuery.from(Employee.class);
 
-        Predicate predicate = criteriaBuilder.conjunction();
+        // Soft-deleted employees never show up in searches
+        Predicate predicate = criteriaBuilder.isFalse(root.get("isDeleted"));
         List<SearchCriteria> searchCriteriaList = new ArrayList<>();
         if (search != null && search.length > 0) {
             for (String s : search) {

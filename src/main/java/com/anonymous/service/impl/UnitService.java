@@ -21,6 +21,6 @@ public class UnitService implements IUnitService {
 
     @Override
     public List<UnitResponse> getAll() {
-        return unitRepository.findAll().stream().map(unitMapper::toDTO).toList();
+        return unitRepository.findAllByIsDeletedFalse().stream().map(unitMapper::toDTO).toList();
     }
 }

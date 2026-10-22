@@ -1,9 +1,11 @@
 package com.anonymous.entity;
 
+import com.anonymous.constant.PaymentMethod;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,18 +18,31 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Invoice extends AbstractEntity {
+public class Invoice extends SoftDeletableEntity {
+
+    @Column(name = "code", nullable = false, unique = true, length = 20)
+    String code;
 
     Instant invoiceCreateDate;
-    Double discount;
+    // Invoice-level discount in money; line discounts are on InvoiceDetail
+    BigDecimal discount;
     Integer totalProduct;
-    Double totalPrice;
+    BigDecimal totalPrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_method", nullable = false, length = 20)
+    PaymentMethod paymentMethod;
+
+    BigDecimal amountPaid;
+
+    BigDecimal changeAmount;
 
     @ManyToOne
     @JoinColumn(name = "status_invoice_id")
     StatusInvoice statusInvoice;
 
     @OneToMany(mappedBy = "invoice")
+    @Builder.Default
     Set<InvoiceDetail> invoiceDetails = new HashSet<>();
 
     @ManyToOne

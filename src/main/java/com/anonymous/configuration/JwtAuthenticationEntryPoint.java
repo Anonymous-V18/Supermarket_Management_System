@@ -10,6 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
@@ -22,6 +23,8 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        // Servlet default is ISO-8859-1, which mangles the Vietnamese message
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
         ApiResponse<ErrorCode> apiResponse = ApiResponse.<ErrorCode>builder()
                 .code(errorCode.getCode())
