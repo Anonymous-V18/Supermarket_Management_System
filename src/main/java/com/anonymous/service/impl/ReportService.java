@@ -5,6 +5,7 @@ import com.anonymous.dto.response.ExpiringLotResponse;
 import com.anonymous.dto.response.InventoryRowResponse;
 import com.anonymous.dto.response.ProductSalesResponse;
 import com.anonymous.dto.response.RevenueByDayResponse;
+import com.anonymous.dto.response.WarehouseRevenueResponse;
 import com.anonymous.exception.AppException;
 import com.anonymous.exception.ErrorCode;
 import com.anonymous.repository.ReportRepository;
@@ -69,6 +70,43 @@ public class ReportService implements IReportService {
                     .build());
         }
         return days;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WarehouseRevenueResponse> revenueByWarehouse(LocalDate from, LocalDate to) {
+        DateRange range = DateRange.of(from, to);
+        List<Object[]> sales = reportRepository.revenueByWarehouse(range.start(), range.end());
+        Map<String, Object[]> costs = byDay(reportRepository.costByWarehouse(range.start(), range.end()));
+        Map<String, Object[]> returns = byDay(reportRepository.returnsByWarehouse(range.start(), range.end()));
+
+        List<WarehouseRevenueResponse> result = new ArrayList<>();
+        for (Object[] sale : sales) {
+            String warehouseId = text(sale[0]);
+            String warehouseName = text(sale[1]);
+            long invoiceCount = number(sale[2]);
+            BigDecimal revenue = decimal(sale[3]);
+
+            Object[] costRow = costs.get(warehouseId);
+            Object[] returnRow = returns.get(warehouseId);
+
+            BigDecimal refunds = returnRow != null ? decimal(returnRow[1]) : BigDecimal.ZERO;
+            BigDecimal netCost = (costRow != null ? decimal(costRow[1]) : BigDecimal.ZERO)
+                    .subtract(returnRow != null ? decimal(returnRow[2]) : BigDecimal.ZERO);
+            BigDecimal netRevenue = revenue.subtract(refunds);
+
+            result.add(WarehouseRevenueResponse.builder()
+                    .warehouseId(warehouseId)
+                    .warehouseName(warehouseName)
+                    .invoiceCount(invoiceCount)
+                    .revenue(revenue)
+                    .refunds(refunds)
+                    .netRevenue(netRevenue)
+                    .cost(netCost)
+                    .grossProfit(netRevenue.subtract(netCost))
+                    .build());
+        }
+        return result;
     }
 
     @Override

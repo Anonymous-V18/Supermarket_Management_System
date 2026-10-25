@@ -19,14 +19,21 @@ public final class SearchSpecs {
         return (root, query, cb) -> cb.isFalse(root.get("isDeleted"));
     }
 
-    // Case-insensitive "contains" over several attributes; "customer.name" walks a LEFT JOIN
+    // Case-insensitive "contains" over several attributes; "customer.name" walks a LEFT JOIN.
+    // Multi-word keywords (e.g. "Đỗ Thảo") match if all words appear in the attribute (e.g. "Đỗ Kim Thảo").
     public static <T> Specification<T> keyword(String keyword, String... paths) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }
-        String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
+        String[] words = keyword.trim().toLowerCase(Locale.ROOT).split("\\s+");
         return (root, query, cb) -> cb.or(Arrays.stream(paths)
-                .map(path -> cb.like(cb.lower(resolve(root, path).as(String.class)), pattern))
+                .map(path -> {
+                    var expr = cb.lower(resolve(root, path).as(String.class));
+                    Predicate[] wordPreds = Arrays.stream(words)
+                            .map(w -> cb.like(expr, "%" + w + "%"))
+                            .toArray(Predicate[]::new);
+                    return cb.and(wordPreds);
+                })
                 .toArray(Predicate[]::new));
     }
 
@@ -39,16 +46,24 @@ public final class SearchSpecs {
 
     @SafeVarargs
     public static <T> Specification<T> allOf(Specification<T>... specs) {
-        // Spring Data 4 rejects null specifications, so start from "always true"
-        Specification<T> all = (root, query, cb) -> cb.conjunction();
-        return Arrays.stream(specs)
-                .filter(spec -> spec != null)
-                .reduce(all, Specification::and);
+        Specification<T> combined = (root, query, cb) -> cb.conjunction();
+        for (Specification<T> spec : specs) {
+            if (spec != null) {
+                combined = combined.and(spec);
+            }
+        }
+        return combined;
     }
 
-    private static Path<?> resolve(From<?, ?> root, String path) {
+    private static Path<?> resolve(Path<?> root, String path) {
         String[] parts = path.split("\\.");
-        From<?, ?> from = root;
+        if (!(root instanceof From<?, ?> from)) {
+            Path<?> current = root;
+            for (String part : parts) {
+                current = current.get(part);
+            }
+            return current;
+        }
         for (int i = 0; i < parts.length - 1; i++) {
             from = from.join(parts[i], JoinType.LEFT);
         }

@@ -58,6 +58,38 @@ public class ReportRepository {
                 " GROUP BY return_day", from, to, warehouseId);
     }
 
+    // [warehouse id, warehouse name, invoice count, revenue]
+    public List<Object[]> revenueByWarehouse(Instant from, Instant to) {
+        return rowsWithoutWarehouse("SELECT w.id, w.name, COUNT(i.id), COALESCE(SUM(i.total_price), 0)" +
+                " FROM invoice i JOIN status_invoice s ON s.id = i.status_invoice_id" +
+                " JOIN warehouse w ON w.id = i.warehouse_id" +
+                " WHERE i.is_deleted = FALSE AND s.code = 'COMPLETED'" +
+                " AND i.invoice_create_date >= :fromInstant AND i.invoice_create_date < :toInstant" +
+                " GROUP BY w.id, w.name ORDER BY SUM(i.total_price) DESC", from, to);
+    }
+
+    // [warehouse id, cost]
+    public List<Object[]> costByWarehouse(Instant from, Instant to) {
+        return rowsWithoutWarehouse("SELECT i.warehouse_id, COALESCE(SUM(d.input_price * d.quantity), 0)" +
+                " FROM invoice_detail d JOIN invoice i ON i.id = d.invoice_id" +
+                " JOIN status_invoice s ON s.id = i.status_invoice_id" +
+                " WHERE i.is_deleted = FALSE AND s.code = 'COMPLETED'" +
+                " AND i.invoice_create_date >= :fromInstant AND i.invoice_create_date < :toInstant" +
+                " GROUP BY i.warehouse_id", from, to);
+    }
+
+    // [warehouse id, refunded amount, cost of returned goods]
+    public List<Object[]> returnsByWarehouse(Instant from, Instant to) {
+        return rowsWithoutWarehouse("SELECT r.warehouse_id, COALESCE(SUM(rd.line_total), 0)," +
+                " COALESCE(SUM(rd.quantity * d.input_price), 0)" +
+                " FROM sales_return_detail rd JOIN sales_return r ON r.id = rd.sales_return_id" +
+                " JOIN status_invoice s ON s.id = r.status_invoice_id" +
+                " JOIN invoice_detail d ON d.invoice_id = r.invoice_id AND d.product_id = rd.product_id" +
+                " WHERE r.is_deleted = FALSE AND s.code = 'COMPLETED'" +
+                " AND r.return_date >= :fromInstant AND r.return_date < :toInstant" +
+                " GROUP BY r.warehouse_id", from, to);
+    }
+
     // [product id, code, name, quantity, revenue, gross profit], best sellers first
     public List<Object[]> topProducts(Instant from, Instant to, String warehouseId, int limit) {
         Query query = query("SELECT p.id, p.code, p.name, SUM(d.quantity), SUM(d.line_total)," +
@@ -112,6 +144,13 @@ public class ReportRepository {
                 "   AND xd.expiry_date IS NOT NULL AND xi.is_deleted = FALSE)" +
                 " ORDER BY si.warehouse_id, p.id, si.stock_in_date DESC, si.created_date DESC");
         query.setParameter("warehouseId", warehouseId);
+        return cast(query.getResultList());
+    }
+
+    private List<Object[]> rowsWithoutWarehouse(String sql, Instant from, Instant to) {
+        Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("fromInstant", from);
+        query.setParameter("toInstant", to);
         return cast(query.getResultList());
     }
 

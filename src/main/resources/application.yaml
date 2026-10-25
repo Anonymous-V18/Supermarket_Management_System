@@ -6,6 +6,14 @@ server:
 
 
 spring:
+  threads:
+    virtual:
+      # Chatbot answers are streamed (SSE) while retrieving data; virtual threads keep that cheap
+      enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
   datasource:
     url: ${DBMS_CONNECTION:jdbc:mysql://localhost:3306/supermarket_management?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DBMS_USERNAME:root}
@@ -46,4 +54,29 @@ com:
     username-admin: ${ADMIN_USERNAME:admin1234}
     admin-password: ${ADMIN_PASSWORD}
     employee-default-password: ${EMPLOYEE_DEFAULT_PASSWORD}
+    chatbot:
+      # Answers below this retrieval confidence are refused instead of guessed
+      min-coverage: 0.5
+      top-k: 4
+      requests-per-minute: 20
+      history-retention-days: 90
+      qdrant:
+        url: ${QDRANT_URL:http://localhost:6333}
+        api-key: ${QDRANT_API_KEY:}
+        collection: ${QDRANT_COLLECTION:kb_chunks}
+      # Optional dense embeddings (OpenAI-compatible /v1/embeddings: TEI, Ollama, vLLM...). Blank url = keyword search
+      # only. The model must return 768 dimensions; changing the model re-indexes everything at the next start.
+      embedding:
+        url: ${EMBEDDING_URL:}
+        api-key: ${EMBEDDING_API_KEY:}
+        model: ${EMBEDDING_MODEL:}
+        query-prefix: ${EMBEDDING_QUERY_PREFIX:}
+        passage-prefix: ${EMBEDDING_PASSAGE_PREFIX:}
+        min-score: ${EMBEDDING_MIN_SCORE:0.82}
+      # Optional local Small Language Model (SLM) for zero-hardcode query parsing
+      slm:
+        enabled: ${SLM_ENABLED:false}
+        url: ${SLM_URL:http://localhost:11434}
+        model: ${SLM_MODEL:qwen2.5:0.5b}
+        timeout-ms: ${SLM_TIMEOUT_MS:3000}
 

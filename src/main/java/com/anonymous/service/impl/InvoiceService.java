@@ -9,6 +9,7 @@ import com.anonymous.dto.request.InvoiceInsertRequest;
 import com.anonymous.dto.request.InvoiceRequest;
 import com.anonymous.dto.request.InvoiceUpdateRequest;
 import com.anonymous.dto.response.InvoiceResponse;
+import com.anonymous.dto.response.InvoiceStatusCountResponse;
 import com.anonymous.dto.response.PageResponse;
 import com.anonymous.entity.Customer;
 import com.anonymous.entity.Invoice;
@@ -22,12 +23,14 @@ import com.anonymous.repository.ICustomerRepository;
 import com.anonymous.repository.IInvoiceDetailRepository;
 import com.anonymous.repository.IInvoiceRepository;
 import com.anonymous.repository.ISalesReturnRepository;
+import org.springframework.data.jpa.domain.Specification;
 import com.anonymous.repository.IWarehouseRepository;
 import com.anonymous.repository.specification.SearchSpecs;
 import com.anonymous.service.ICodeGeneratorService;
 import com.anonymous.service.IInvoiceService;
 import com.anonymous.service.IWarehouseProductService;
 import com.anonymous.utils.MoneyUtil;
+import com.anonymous.utils.ShiftUtil;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -37,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -147,11 +151,32 @@ public class InvoiceService implements IInvoiceService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<InvoiceResponse> search(String keyword, String statusCode, Pageable pageable) {
-        return PageResponse.of(invoiceRepository.findAll(SearchSpecs.allOf(
+        return search(keyword, null, null, statusCode, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<InvoiceResponse> search(String keyword, LocalDate from, LocalDate to, String statusCode, Pageable pageable) {
+        Specification<Invoice> spec = SearchSpecs.allOf(
                 SearchSpecs.notDeleted(),
                 SearchSpecs.keyword(keyword, "code", "customer.name", "customer.phoneNumber", "employee.name"),
                 SearchSpecs.statusCode(statusCode)
-        ), pageable), invoiceMapper::toDTO);
+        );
+        if (from != null || to != null) {
+            LocalDate startDay = from != null ? from : to;
+            LocalDate endDay = to != null ? to : from;
+            Instant startInstant = startDay.atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+            Instant endInstant = endDay.plusDays(1).atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+            Specification<Invoice> dateSpec = (root, query, cb) -> {
+                var invoiceDate = cb.coalesce(root.<Instant>get("invoiceCreateDate"), root.<Instant>get("createdDate"));
+                return cb.and(
+                        cb.greaterThanOrEqualTo(invoiceDate, startInstant),
+                        cb.lessThan(invoiceDate, endInstant)
+                );
+            };
+            spec = spec.and(dateSpec);
+        }
+        return PageResponse.of(invoiceRepository.findAll(spec, pageable), invoiceMapper::toDTO);
     }
 
     @Override
@@ -160,6 +185,31 @@ public class InvoiceService implements IInvoiceService {
         Invoice invoice = invoiceRepository.findByIdAndIsDeletedFalse(invoiceId)
                 .orElseThrow(() -> new AppException(ErrorCode.INVOICE_NOT_EXIST));
         return invoiceMapper.toDTO(invoice);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InvoiceStatusCountResponse> countByStatus(LocalDate from, LocalDate to, String warehouseId) {
+        Instant start = from.atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+        Instant end = to.plusDays(1).atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+        return invoiceRepository.countByStatus(start, end, warehouseId).stream()
+                .map(row -> InvoiceStatusCountResponse.builder()
+                        .statusCode(row.getStatusCode())
+                        .statusName(row.getStatusName())
+                        .invoiceCount(row.getInvoiceCount())
+                        .total(row.getTotal())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InvoiceResponse> findByDateRange(LocalDate from, LocalDate to, String warehouseId, int limit) {
+        Instant start = from.atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+        Instant end = to.plusDays(1).atStartOfDay(ShiftUtil.VIETNAM_ZONE).toInstant();
+        int safeLimit = Math.clamp(limit, 1, 100);
+        return invoiceRepository.findByDateRange(start, end, warehouseId, org.springframework.data.domain.PageRequest.of(0, safeLimit))
+                .stream().map(invoiceMapper::toDTO).toList();
     }
 
     // Lines listed in the update keep their id; unlisted lines are removed; new lines are added

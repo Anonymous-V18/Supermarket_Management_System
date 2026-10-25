@@ -1,0 +1,713 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Đặc tả chức năng Supermarket Management</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Lexend:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: sticky table of contents beside one reading column; flows read top to bottom like a spec binder */
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --surface-2: #eef3f1;
+  --fg: #17211e;
+  --muted: #56645f;
+  --line: #d6dfdb;
+  --accent: #0b6e55;
+  --accent-soft: #dcefe8;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --bad: #b3261e;
+  --bad-soft: #f9e1df;
+  --good: #1f7a3a;
+  --font-display: "Lexend", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101614; --surface: #161e1b; --surface-2: #1c2622; --fg: #e4ece8; --muted: #9db0a8;
+    --line: #2b3833; --accent: #4fc6a2; --accent-soft: #173a30; --warn: #f0b75c; --warn-soft: #3a2c12;
+    --bad: #f28b82; --bad-soft: #3d1b19; --good: #7fd49a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101614; --surface: #161e1b; --surface-2: #1c2622; --fg: #e4ece8; --muted: #9db0a8;
+  --line: #2b3833; --accent: #4fc6a2; --accent-soft: #173a30; --warn: #f0b75c; --warn-soft: #3a2c12;
+  --bad: #f28b82; --bad-soft: #3d1b19; --good: #7fd49a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15.5px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; }
+header.cover { padding-block: 40px 28px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+.eyebrow { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; margin: 0; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); margin-block: 8px 12px; }
+h2 { font-size: 1.45rem; margin-block: 0 6px; }
+h3 { font-size: 1.08rem; margin-block: 22px 8px; }
+h4 { font-size: .98rem; margin-block: 16px 6px; }
+p { margin: 0 0 10px; }
+.lead { color: var(--muted); max-width: 70ch; font-size: 1.02rem; }
+.cover-meta { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+.cover-meta b { color: var(--fg); font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 1fr; gap: 28px; }
+@media (min-width: 1000px) { .layout { grid-template-columns: 250px minmax(0, 1fr); } }
+nav.toc { font-size: 14px; }
+@media (min-width: 1000px) { nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); align-self: start; max-height: calc(100vh - 32px); overflow-y: auto; } }
+nav.toc details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+nav.toc summary { cursor: pointer; font-weight: 600; font-family: var(--font-display); }
+nav.toc ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 2px; }
+nav.toc a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--fg); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+nav.toc .grp { margin-top: 10px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-left: 8px; }
+
+main { min-width: 0; display: grid; gap: 22px; overflow-wrap: break-word; }
+section.block { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px clamp(16px, 3vw, 30px); min-width: 0; scroll-margin-top: 16px; }
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 10px; }
+.sec-no { font-family: var(--font-mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+.sec-sub { color: var(--muted); font-size: 14px; flex-basis: 100%; }
+
+dl.meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 4px 0 12px; padding: 12px 14px; background: var(--surface-2); border-radius: 8px; font-size: 14.5px; }
+dl.meta dt { color: var(--muted); font-weight: 500; }
+dl.meta dd { margin: 0; min-width: 0; }
+@media (max-width: 520px) { dl.meta { grid-template-columns: 1fr; } dl.meta dd { margin-bottom: 6px; } }
+
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 6px 0 10px; display: grid; gap: 8px; }
+ol.steps > li { counter-increment: step; position: relative; padding-left: 40px; min-height: 28px; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+ol.steps ul { margin: 4px 0 0; padding-left: 18px; }
+ul { padding-left: 20px; margin: 4px 0 10px; }
+li { margin-block: 2px; }
+
+.code, code { font-family: var(--font-mono); font-size: .86em; background: var(--surface-2); border: 1px solid var(--line); padding: 0 5px; border-radius: 5px; overflow-wrap: anywhere; }
+.chip { display: inline; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; line-height: 1; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.trans .chip { display: inline-block; line-height: 1.6; }
+.chip.pending { color: var(--warn); }
+.chip.done { color: var(--good); }
+.chip.cancel { color: var(--bad); }
+
+.note { border-radius: 8px; padding: 10px 14px; font-size: 14.5px; margin: 10px 0; }
+.note.info { background: var(--accent-soft); }
+.note.warn { background: var(--warn-soft); }
+.note b:first-child { font-family: var(--font-display); }
+
+.tbl { overflow-x: auto; margin: 8px 0 12px; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--surface-2); font-weight: 600; font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+td.c, th.c { text-align: center; }
+.yes { color: var(--good); font-weight: 600; }
+.ro { color: var(--warn); font-weight: 600; }
+.no { color: var(--muted); }
+
+.diagram { background: var(--surface-2); border-radius: 8px; padding: 14px; margin: 10px 0; display: grid; gap: 12px; }
+.flow-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.flow-sub { padding-top: 12px; border-top: 1px dashed var(--line); }
+.flow-label { flex-basis: 100%; font-size: 13.5px; color: var(--muted); }
+.node { display: inline-flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; font-weight: 600; font-size: 14px; line-height: 1.35; }
+.node small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.node.hub { background: var(--accent-soft); border-color: var(--accent); }
+.arrow { color: var(--muted); font-weight: 600; }
+.trans { gap: 8px; }
+.trans-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+.trans-from { min-width: 8.5rem; font-weight: 600; }
+.or { color: var(--muted); font-size: 13.5px; }
+@media (max-width: 560px) {
+  .trans-from { min-width: 0; }
+  .trans-row { padding-bottom: 8px; border-bottom: 1px dashed var(--line); }
+  .trans-row:last-child { padding-bottom: 0; border-bottom: 0; }
+}
+.two { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 760px) { .two { grid-template-columns: 1fr 1fr; } }
+.two > div { min-width: 0; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+footer { color: var(--muted); font-size: 13px; text-align: center; margin-top: 28px; }
+</style>
+
+<div class="wrap">
+  <header class="cover">
+    <div class="eyebrow">Tài liệu đặc tả chức năng · Hệ thống quản lý siêu thị (POS)</div>
+    <h1>Đặc tả chức năng Supermarket Management</h1>
+    <p class="lead">Mô tả toàn bộ chức năng của hệ thống theo từng luồng nghiệp vụ, từ lúc nhân viên đăng nhập, nhận ca, nhập hàng, bán hàng, trả hàng, điều chuyển, kiểm kê cho tới báo cáo và kiểm soát. Mỗi luồng ghi rõ ai thực hiện, các bước trên màn hình, quy tắc hệ thống áp dụng, ảnh hưởng tới tồn kho và các lỗi người dùng có thể gặp.</p>
+    <div class="cover-meta">
+      <span><b>Backend:</b> Spring Boot · MySQL · Flyway</span>
+      <span><b>Frontend:</b> Angular</span>
+      <span><b>Phiên bản tài liệu:</b> 22/10/2026</span>
+      <span><b>Tiền tệ:</b> VND, làm tròn tới đồng</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Mục lục">
+      <details open>
+        <summary>Mục lục</summary>
+        <ol>
+          <li class="grp">Phần chung</li>
+          <li><a href="#tong-quan">0. Tổng quan &amp; vai trò</a></li>
+          <li><a href="#quy-tac">Quy tắc chung</a></li>
+          <li><a href="#phan-quyen">Ma trận phân quyền</a></li>
+          <li class="grp">Bắt đầu làm việc</li>
+          <li><a href="#dang-nhap">1. Đăng nhập &amp; tài khoản</a></li>
+          <li><a href="#ca-lam">2. Nhận ca: Trang chính &amp; checklist</a></li>
+          <li class="grp">Dữ liệu nền</li>
+          <li><a href="#nhan-su">3. Nhân sự</a></li>
+          <li><a href="#san-pham">4. Sản phẩm</a></li>
+          <li><a href="#ncc-kho">5. Nhà cung cấp &amp; kho</a></li>
+          <li class="grp">Luồng hàng hóa</li>
+          <li><a href="#nhap-kho">6. Nhập kho (lô, HSD)</a></li>
+          <li><a href="#ban-hang">7. Bán hàng tại quầy</a></li>
+          <li><a href="#tra-hang">8. Trả hàng</a></li>
+          <li><a href="#xuat-kho">9. Xuất kho</a></li>
+          <li><a href="#chuyen-kho">10. Chuyển kho</a></li>
+          <li><a href="#kiem-ke">11. Kiểm kê</a></li>
+          <li class="grp">Quản trị &amp; kiểm soát</li>
+          <li><a href="#bao-cao">12. Báo cáo</a></li>
+          <li><a href="#nhat-ky">13. Nhật ký hệ thống</a></li>
+          <li><a href="#checklist-admin">14. Quản lý checklist ca</a></li>
+          <li><a href="#gioi-han">15. Phạm vi &amp; giới hạn</a></li>
+        </ol>
+      </details>
+    </nav>
+
+    <main>
+      <!-- 0 -->
+      <section class="block" id="tong-quan">
+        <div class="sec-head"><span class="sec-no">00</span><h2>Tổng quan hệ thống &amp; vai trò</h2>
+          <span class="sec-sub">Hệ thống phục vụ một chuỗi/siêu thị có nhiều kho, bán lẻ tại quầy (POS).</span></div>
+        <p>Hàng hóa đi qua hệ thống theo một chuỗi khép kín: danh mục được khai báo trước, hàng vào kho qua <b>phiếu nhập</b>, ra khỏi kho qua <b>hóa đơn bán</b> hoặc <b>phiếu xuất</b>, có thể quay lại qua <b>phiếu trả hàng</b>, di chuyển giữa các kho qua <b>phiếu chuyển</b> và được đối chiếu thực tế qua <b>phiếu kiểm kê</b>. Mọi chứng từ đều cập nhật bảng tồn kho theo từng kho, và toàn bộ thao tác ghi dữ liệu được lưu vào <b>nhật ký hệ thống</b>.</p>
+        <div class="diagram" role="img" aria-label="Chuỗi hàng hóa: danh mục, nhập kho, tồn kho, bán hàng, báo cáo">
+          <div class="flow-row">
+            <span class="node">Danh mục<small>SP · NCC · kho · NV</small></span><span class="arrow" aria-hidden="true">→</span>
+            <span class="node">Nhập kho<small>PN</small></span><span class="arrow" aria-hidden="true">→</span>
+            <span class="node hub">Tồn kho<small>theo từng kho</small></span><span class="arrow" aria-hidden="true">→</span>
+            <span class="node">Bán hàng<small>HD</small></span><span class="arrow" aria-hidden="true">→</span>
+            <span class="node">Báo cáo<small>doanh thu · tồn · HSD</small></span>
+          </div>
+          <div class="flow-row flow-sub">
+            <span class="flow-label">Các chứng từ khác cũng tác động lên tồn kho:</span>
+            <span class="node">Trả hàng<small>TH · cộng lại kho</small></span>
+            <span class="node">Xuất kho<small>PX · trừ kho</small></span>
+            <span class="node">Chuyển kho<small>CK · kho này sang kho khác</small></span>
+            <span class="node">Kiểm kê<small>KK · đặt tồn = số đếm</small></span>
+          </div>
+        </div>
+        <h3>Các vai trò (quyền) trong hệ thống</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>Mã quyền</th><th>Tên</th><th>Công việc chính</th></tr></thead>
+          <tbody>
+            <tr><td><code>ADMIN</code></td><td>Quản trị viên</td><td>Toàn quyền: quản lý nhân sự, xem số liệu toàn cửa hàng, nhật ký hệ thống, cấu hình checklist ca, sửa/hủy mọi chứng từ.</td></tr>
+            <tr><td><code>SALESMAN</code></td><td>Thu ngân / bán hàng</td><td>Lập hóa đơn bán tại quầy, lập phiếu trả hàng, tra cứu sản phẩm và tồn kho.</td></tr>
+            <tr><td><code>STOREKEEPER</code></td><td>Thủ kho</td><td>Quản lý sản phẩm, nhà cung cấp; lập phiếu nhập, xuất, chuyển kho, kiểm kê; xem báo cáo tồn kho và hạn sử dụng. Danh mục kho do Admin tạo.</td></tr>
+            <tr><td><code>ACCOUNTING_STAFF</code></td><td>Kế toán</td><td>Xem (không sửa) hóa đơn, phiếu trả và chứng từ kho; xem toàn bộ báo cáo doanh thu, lãi gộp, tồn kho.</td></tr>
+            <tr><td><code>EMPLOYEE</code></td><td>Nhân viên</td><td>Quyền cơ bản: trang chính, checklist ca, thông tin tài khoản. Thường gán kèm một quyền nghiệp vụ ở trên.</td></tr>
+            <tr><td><code>CUSTOMER</code></td><td>Khách hàng</td><td>Quyền mặc định khi đăng ký tài khoản tự do; chưa có màn hình dành cho khách.</td></tr>
+          </tbody>
+        </table></div>
+        <p>Một nhân viên có thể có nhiều quyền (ví dụ <code>EMPLOYEE</code> + <code>SALESMAN</code>). Menu bên trái chỉ hiện các mục người dùng được phép dùng, và backend kiểm tra lại quyền ở từng API, nên gọi API trực tiếp cũng không vượt quyền được.</p>
+      </section>
+
+      <!-- Common rules -->
+      <section class="block" id="quy-tac">
+        <div class="sec-head"><span class="sec-no">QT</span><h2>Quy tắc chung áp dụng cho mọi luồng</h2></div>
+
+        <h3>Mã nghiệp vụ tự sinh</h3>
+        <p>Người dùng không nhập mã. Hệ thống cấp mã khi lưu lần đầu, tăng dần, không trùng, kể cả khi hai máy lưu cùng lúc (bộ đếm được khóa trong giao dịch).</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Đối tượng</th><th>Tiền tố</th><th>Ví dụ</th></tr></thead>
+          <tbody>
+            <tr><td>Sản phẩm</td><td><code>SP</code> + 5 số</td><td><code>SP00101</code></td></tr>
+            <tr><td>Nhân viên</td><td><code>NV</code> + 5 số</td><td><code>NV00101</code></td></tr>
+            <tr><td>Hóa đơn bán</td><td><code>HD</code> + 6 số</td><td><code>HD000101</code></td></tr>
+            <tr><td>Phiếu nhập kho</td><td><code>PN</code> + 6 số</td><td><code>PN000101</code></td></tr>
+            <tr><td>Phiếu xuất kho</td><td><code>PX</code> + 6 số</td><td><code>PX000101</code></td></tr>
+            <tr><td>Phiếu chuyển kho</td><td><code>CK</code> + 6 số</td><td><code>CK000101</code></td></tr>
+            <tr><td>Phiếu kiểm kê</td><td><code>KK</code> + 6 số</td><td><code>KK000101</code></td></tr>
+            <tr><td>Phiếu trả hàng</td><td><code>TH</code> + 6 số</td><td><code>TH000101</code></td></tr>
+          </tbody>
+        </table></div>
+
+        <h3>Trạng thái chứng từ</h3>
+        <p>Hóa đơn, phiếu nhập, xuất, chuyển, kiểm kê và trả hàng dùng chung ba trạng thái: <span class="chip pending">Chờ xử lý</span> <span class="chip done">Đã hoàn thành</span> <span class="chip cancel">Đã hủy</span>.</p>
+        <div class="two">
+          <div>
+            <div class="diagram trans" role="img" aria-label="Các bước chuyển trạng thái chứng từ">
+              <div class="trans-row"><span class="trans-from">Tạo mới</span><span class="arrow" aria-hidden="true">→</span><span class="chip pending">Chờ xử lý</span><span class="or">hoặc</span><span class="chip done">Đã hoàn thành</span></div>
+              <div class="trans-row"><span class="trans-from"><span class="chip pending">Chờ xử lý</span></span><span class="arrow" aria-hidden="true">→</span><span class="chip done">Đã hoàn thành</span><span class="or">hoặc</span><span class="chip cancel">Đã hủy</span></div>
+              <div class="trans-row"><span class="trans-from"><span class="chip done">Đã hoàn thành</span></span><span class="arrow" aria-hidden="true">→</span><span class="chip cancel">Đã hủy</span></div>
+              <div class="trans-row"><span class="trans-from"><span class="chip cancel">Đã hủy</span></span><span class="or">trạng thái cuối, không đổi được nữa</span></div>
+            </div>
+          </div>
+          <div>
+            <ul>
+              <li>Chỉ chứng từ <span class="chip pending">Chờ xử lý</span> mới sửa được nội dung (dòng hàng, số lượng, ghi chú...). Sửa chứng từ đã chốt báo lỗi <em>"Chỉ sửa được chứng từ đang chờ xử lý"</em>.</li>
+              <li>Chứng từ <span class="chip done">Đã hoàn thành</span> chỉ được chuyển sang <span class="chip cancel">Đã hủy</span>. Riêng phiếu kiểm kê đã cân bằng kho thì cố định, không hủy được.</li>
+              <li><span class="chip cancel">Đã hủy</span> là trạng thái cuối, không mở lại được.</li>
+              <li>Không thể tạo mới một chứng từ ở trạng thái Đã hủy.</li>
+              <li>Chỉ người lập chứng từ hoặc Admin mới được sửa, hủy, xóa chứng từ đó.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Chứng từ ảnh hưởng tồn kho thế nào</h3>
+        <p>Nguyên tắc chung: <b>chứng từ tính vào tồn kho ở mọi trạng thái trừ Đã hủy</b>. Như vậy hóa đơn đang chờ cũng đã "giữ" hàng, tránh bán vượt số lượng thực có. Khi trạng thái hoặc số lượng thay đổi, hệ thống tính chênh lệch giữa trước và sau rồi cộng/trừ đúng phần chênh lệch đó.</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Chứng từ</th><th class="c">Chờ xử lý</th><th class="c">Đã hoàn thành</th><th class="c">Đã hủy</th></tr></thead>
+          <tbody>
+            <tr><td>Phiếu nhập (PN)</td><td class="c">+ kho nhận</td><td class="c">+ kho nhận</td><td class="c">hoàn lại</td></tr>
+            <tr><td>Hóa đơn bán (HD)</td><td class="c">− kho bán</td><td class="c">− kho bán</td><td class="c">hoàn lại</td></tr>
+            <tr><td>Phiếu xuất (PX)</td><td class="c">− kho xuất</td><td class="c">− kho xuất</td><td class="c">hoàn lại</td></tr>
+            <tr><td>Phiếu trả hàng (TH)</td><td class="c">+ kho của hóa đơn</td><td class="c">+ kho của hóa đơn</td><td class="c">hoàn lại</td></tr>
+            <tr><td>Phiếu chuyển (CK)</td><td class="c">− kho chuyển<br/>(hàng đang đi đường)</td><td class="c">− kho chuyển<br/>+ kho nhận</td><td class="c">hoàn lại cả hai kho</td></tr>
+            <tr><td>Phiếu kiểm kê (KK)</td><td class="c">không đổi</td><td class="c">đặt tồn = số đếm</td><td class="c">không đổi</td></tr>
+          </tbody>
+        </table></div>
+        <ul>
+          <li>Tồn kho không bao giờ âm. Thao tác nào làm tồn âm bị từ chối với lỗi <em>"Số lượng tồn kho không đủ"</em> và toàn bộ chứng từ không được lưu.</li>
+          <li>Khi hai quầy cùng bán một mặt hàng, dòng tồn kho bị khóa trong lúc ghi, nên quầy sau phải chờ quầy trước xong rồi mới kiểm tra số lượng. Không có chuyện hai hóa đơn cùng lấy một món hàng cuối cùng.</li>
+        </ul>
+
+        <h3>Xóa mềm</h3>
+        <ul>
+          <li>Không có dữ liệu nào bị xóa vật lý. "Xóa" chỉ đánh dấu đã xóa, kèm người xóa và thời điểm xóa. Dữ liệu biến mất khỏi danh sách và không dùng được cho giao dịch mới, nhưng chứng từ cũ vẫn hiển thị đúng.</li>
+          <li>Sản phẩm đã xóa không bán, nhập hay chuyển được nữa (<em>"Sản phẩm không tồn tại hoặc đã ngừng kinh doanh"</em>), nhưng vẫn trả hàng được nếu nằm trên hóa đơn cũ.</li>
+          <li>Chứng từ đã hoàn thành không xóa được (<em>"Chứng từ đã hoàn thành, hãy hủy thay vì xóa"</em>). Xóa chứng từ đang chờ sẽ hoàn lại phần tồn kho mà chứng từ đó đã tác động.</li>
+          <li>Tài khoản của nhân viên đã xóa không đăng nhập được nữa.</li>
+        </ul>
+
+        <h3>Tiền, giá và dữ liệu nhập</h3>
+        <ul>
+          <li>Mọi giá trị tiền do <b>server tính</b>: đơn giá lấy từ sản phẩm, thành tiền, tổng tiền, tiền thối. Màn hình chỉ hiển thị số tạm tính để người dùng xem trước; dữ liệu client gửi lên không quyết định số tiền.</li>
+          <li>Tiền lưu dạng số thập phân chính xác (không dùng số thực), làm tròn tới đồng (làm tròn nửa lên).</li>
+          <li>Giá được <b>chụp lại</b> trên từng dòng chứng từ tại thời điểm lập, nên đổi giá sản phẩm sau đó không làm sai hóa đơn cũ.</li>
+          <li>Thông báo lỗi kiểm tra dữ liệu bằng tiếng Việt và chỉ rõ trường sai (ví dụ <em>"Vui lòng chọn kho"</em>, <em>"Số lượng phải lớn hơn 0"</em>).</li>
+          <li>Các danh sách đều có ô tìm kiếm (gõ tới đâu lọc tới đó), lọc theo trạng thái, phân trang 20 dòng, chứng từ mới nhất nằm trên cùng.</li>
+        </ul>
+      </section>
+
+      <!-- Permission matrix -->
+      <section class="block" id="phan-quyen">
+        <div class="sec-head"><span class="sec-no">PQ</span><h2>Ma trận phân quyền</h2>
+          <span class="sec-sub"><span class="yes">Ghi</span> = thêm/sửa/hủy/xóa · <span class="ro">Xem</span> = chỉ đọc · <span class="no">—</span> = không được truy cập</span></div>
+        <div class="tbl"><table>
+          <thead><tr><th>Chức năng</th><th class="c">ADMIN</th><th class="c">SALESMAN</th><th class="c">STOREKEEPER</th><th class="c">ACCOUNTING</th><th class="c">EMPLOYEE</th></tr></thead>
+          <tbody>
+            <tr><td>Trang chính, checklist ca, tài khoản cá nhân</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td></tr>
+            <tr><td>Nhân sự</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+            <tr><td>Sản phẩm (tra cứu, quét mã vạch)</td><td class="c yes">Ghi</td><td class="c ro">Xem</td><td class="c yes">Ghi</td><td class="c ro">Xem</td><td class="c ro">Xem</td></tr>
+            <tr><td>Nhà cung cấp</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c yes">Ghi</td><td class="c ro">Xem</td><td class="c no">—</td></tr>
+            <tr><td>Kho</td><td class="c yes">Ghi</td><td class="c ro">Xem</td><td class="c ro">Xem</td><td class="c ro">Xem</td><td class="c ro">Xem</td></tr>
+            <tr><td>Khách hàng (chọn khi bán)</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+            <tr><td>Nhập kho, xuất kho, chuyển kho, kiểm kê</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c yes">Ghi</td><td class="c ro">Xem</td><td class="c no">—</td></tr>
+            <tr><td>Bán hàng (hóa đơn), trả hàng</td><td class="c yes">Ghi</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c ro">Xem</td><td class="c no">—</td></tr>
+            <tr><td>Báo cáo doanh thu, sản phẩm bán chạy, theo nhân viên</td><td class="c ro">Xem</td><td class="c no">—</td><td class="c no">—</td><td class="c ro">Xem</td><td class="c no">—</td></tr>
+            <tr><td>Báo cáo tồn kho, hàng sắp hết hạn</td><td class="c ro">Xem</td><td class="c no">—</td><td class="c ro">Xem</td><td class="c ro">Xem</td><td class="c no">—</td></tr>
+            <tr><td>Nhật ký hệ thống, quản lý checklist ca</td><td class="c yes">Ghi</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td><td class="c no">—</td></tr>
+          </tbody>
+        </table></div>
+        <p>Người không có quyền mà vẫn gọi API sẽ nhận lỗi <em>"Bạn không có quyền thực hiện thao tác này"</em>, và lần thử đó cũng được ghi vào nhật ký.</p>
+      </section>
+
+      <!-- 1 -->
+      <section class="block" id="dang-nhap">
+        <div class="sec-head"><span class="sec-no">01</span><h2>Luồng đăng nhập, phiên làm việc &amp; tài khoản</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Mọi nhân viên có tài khoản</dd>
+          <dt>Mục đích</dt><dd>Xác thực người dùng, cấp phiên làm việc và quyền tương ứng</dd>
+          <dt>Tiền điều kiện</dt><dd>Tài khoản được Admin tạo (qua màn hình Nhân sự) và đang hoạt động</dd>
+        </dl>
+        <h3>Đăng nhập</h3>
+        <ol class="steps">
+          <li>Người dùng mở hệ thống, nhập <b>tên đăng nhập</b> (với nhân viên là email) và <b>mật khẩu</b>.</li>
+          <li>Hệ thống kiểm tra tài khoản và mật khẩu (mật khẩu được lưu dạng băm, không lưu bản rõ).</li>
+          <li>Hệ thống kiểm tra tài khoản còn hoạt động và nhân viên chưa bị xóa.</li>
+          <li>Hệ thống cấp <b>token đăng nhập</b> có hạn 24 giờ, có thể gia hạn trong vòng 10 ngày. Token mang mã nhân viên, tên đăng nhập và danh sách quyền.</li>
+          <li>Giao diện lưu phiên, dựng menu theo quyền và chuyển vào <b>Trang chính</b>.</li>
+        </ol>
+        <div class="tbl"><table>
+          <thead><tr><th>Tình huống</th><th>Hệ thống phản hồi</th></tr></thead>
+          <tbody>
+            <tr><td>Sai mật khẩu hoặc tên đăng nhập không tồn tại</td><td><em>"Tên đăng nhập hoặc mật khẩu không đúng"</em>. Hai trường hợp báo giống hệt nhau để không lộ tài khoản nào có thật.</td></tr>
+            <tr><td>Tài khoản bị khóa hoặc nhân viên đã nghỉ (đã xóa)</td><td><em>"Tài khoản đã bị khóa"</em></td></tr>
+            <tr><td>Chưa đăng nhập mà truy cập chức năng</td><td><em>"Vui lòng đăng nhập"</em>, quay về màn hình đăng nhập</td></tr>
+            <tr><td>Token hết hạn hoặc đã đăng xuất</td><td><em>"Phiên đăng nhập đã hết hạn"</em> / <em>"Phiên đăng nhập không hợp lệ"</em></td></tr>
+          </tbody>
+        </table></div>
+        <h3>Đăng xuất &amp; gia hạn phiên</h3>
+        <ul>
+          <li><b>Đăng xuất:</b> token hiện tại bị đưa vào danh sách vô hiệu, nên dùng lại token cũ sẽ bị từ chối dù chưa hết hạn.</li>
+          <li><b>Gia hạn:</b> API gia hạn đổi token cũ (còn trong 10 ngày) lấy token mới, đồng thời vô hiệu token cũ. Hệ thống kiểm tra lại trạng thái tài khoản khi gia hạn, nên tài khoản bị khóa không gia hạn được.</li>
+        </ul>
+        <h3>Tài khoản cá nhân</h3>
+        <ol class="steps">
+          <li>Vào menu <b>Tài khoản → Thông tin</b>: xem và cập nhật họ tên, giới tính (Nam/Nữ/Khác), ngày sinh, số điện thoại, email và địa chỉ (Tỉnh/Thành → Quận/Huyện → Phường/Xã, chọn theo cấp). Vị trí làm việc và quyền chỉ hiển thị, không tự sửa được.</li>
+          <li>Vào <b>Tài khoản → Đổi mật khẩu</b>: nhập mật khẩu hiện tại, mật khẩu mới (tối thiểu 8 ký tự) và nhập lại mật khẩu mới. Sai mật khẩu hiện tại báo <em>"Mật khẩu không đúng"</em>.</li>
+        </ol>
+      </section>
+
+      <!-- 2 -->
+      <section class="block" id="ca-lam">
+        <div class="sec-head"><span class="sec-no">02</span><h2>Luồng nhận ca: Trang chính &amp; checklist ca</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Mọi nhân viên đã đăng nhập</dd>
+          <dt>Mục đích</dt><dd>Cho biết đang ở ca nào, số liệu bán hàng trong ca, và các việc phải làm đầu ca / cuối ca</dd>
+        </dl>
+        <h3>Xác định ca làm việc</h3>
+        <p>Hệ thống tự xác định ca theo giờ Việt Nam lúc mở trang:</p>
+        <div class="tbl"><table>
+          <thead><tr><th>Ca</th><th>Khung giờ</th><th>Ghi chú</th></tr></thead>
+          <tbody>
+            <tr><td>Ca sáng</td><td>06:00 – 14:00</td><td></td></tr>
+            <tr><td>Ca chiều</td><td>14:00 – 22:00</td><td></td></tr>
+            <tr><td>Ca đêm</td><td>22:00 – 06:00</td><td>Từ 00:00 đến 06:00 vẫn thuộc ca đêm của <b>ngày hôm trước</b></td></tr>
+          </tbody>
+        </table></div>
+        <h3>Số liệu trong ca</h3>
+        <ol class="steps">
+          <li>Trang chính hiển thị: số <b>hóa đơn đã bán</b>, <b>doanh thu</b>, <b>số sản phẩm đã bán</b>, <b>giá trị trung bình / hóa đơn</b> trong ca hiện tại, cùng số hóa đơn theo từng trạng thái (hoàn thành / chờ / hủy).</li>
+          <li>Phạm vi số liệu theo quyền: <b>nhân viên</b> chỉ thấy hóa đơn do chính mình lập; <b>Admin</b> thấy toàn cửa hàng.</li>
+          <li>Hóa đơn đã hủy không tính vào doanh thu và số lượng.</li>
+          <li>Khối <b>"Khuyến mãi đang áp dụng"</b> liệt kê các chương trình còn hiệu lực (tên, mã voucher, ngày kết thúc).</li>
+        </ol>
+        <h3>Checklist ca</h3>
+        <ol class="steps">
+          <li>Khối <b>"Việc cần làm trong ca"</b> chia hai nhóm <b>Đầu ca</b> và <b>Cuối ca</b>. Danh sách mặc định:
+            <ul>
+              <li>Đầu ca: Kiểm tra máy in hóa đơn và giấy in · Kiểm tra máy quét mã vạch · Kiểm đếm tiền lẻ trong két</li>
+              <li>Cuối ca: Kiểm tra lại các hóa đơn đã bán trong ca · Đối chiếu tiền mặt cuối ca · Bàn giao ca và đăng xuất</li>
+            </ul>
+          </li>
+          <li>Nhân viên tick từng việc khi làm xong, ghi <b>"Ghi chú bàn giao"</b> (tối đa 2000 ký tự) và đánh dấu hoàn thành ca.</li>
+          <li>Hệ thống lưu checklist theo <b>tài khoản + ngày làm việc + ca</b>, mỗi người một bản cho mỗi ca. Người dùng được xác định từ phiên đăng nhập, không thể ghi checklist hộ người khác.</li>
+          <li>Danh sách việc do Admin cấu hình (xem <a href="#checklist-admin">mục 14</a>); việc bị ẩn sẽ không hiện ở ca mới nhưng lịch sử các ca cũ vẫn giữ nguyên.</li>
+        </ol>
+      </section>
+
+      <!-- 3 -->
+      <section class="block" id="nhan-su">
+        <div class="sec-head"><span class="sec-no">03</span><h2>Luồng quản lý nhân sự</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Admin</dd>
+          <dt>Mục đích</dt><dd>Tạo hồ sơ nhân viên kèm tài khoản đăng nhập và phân quyền</dd>
+        </dl>
+        <h3>Thêm nhân viên</h3>
+        <ol class="steps">
+          <li>Admin vào <b>Nhân sự → Thêm</b>, nhập: họ tên, giới tính (Nam/Nữ/Khác), ngày sinh, số điện thoại, email, địa chỉ (chọn Tỉnh/Thành → Quận/Huyện → Phường/Xã và nhập số nhà), vị trí làm việc và các quyền.</li>
+          <li>Hệ thống kiểm tra dữ liệu (định dạng điện thoại, email, giới tính hợp lệ, vị trí tồn tại, phường thuộc đúng quận, quận thuộc đúng tỉnh).</li>
+          <li>Hệ thống cấp <b>mã nhân viên</b> dạng <code>NV00101</code>.</li>
+          <li>Hệ thống <b>tự tạo tài khoản đăng nhập</b>: tên đăng nhập = email, mật khẩu = mật khẩu mặc định cấu hình trên server, gán các quyền đã chọn. Email đã được dùng làm tài khoản thì báo <em>"Tên đăng nhập đã tồn tại"</em>.</li>
+          <li>Nhân viên dùng email và mật khẩu mặc định để đăng nhập lần đầu, sau đó tự đổi mật khẩu.</li>
+        </ol>
+        <h3>Tra cứu, sửa, cho nghỉ</h3>
+        <ul>
+          <li>Danh sách tìm theo mã, tên, điện thoại, email. Danh sách không hiển thị tài khoản Admin và chính người đang đăng nhập (tránh tự sửa quyền của mình).</li>
+          <li>Sửa thông tin cá nhân, địa chỉ, vị trí, quyền. Mã nhân viên không đổi.</li>
+          <li>Xóa (cho nghỉ) là xóa mềm: hồ sơ ẩn khỏi danh sách, tài khoản không đăng nhập được, nhưng hóa đơn và chứng từ do người đó lập vẫn hiển thị đúng tên.</li>
+        </ul>
+        <p>Danh mục vị trí có sẵn: Giám đốc chi nhánh, Quản lý siêu thị, Nhân viên thu ngân bán hàng, Nhân viên quản lý kho, Nhân viên kế toán tài chính, Nhân viên kiểm kê hàng hóa, Nhân viên an ninh bảo vệ, Nhân viên chăm sóc khách hàng.</p>
+      </section>
+
+      <!-- 4 -->
+      <section class="block" id="san-pham">
+        <div class="sec-head"><span class="sec-no">04</span><h2>Luồng quản lý sản phẩm</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Admin, Thủ kho (thu ngân và kế toán chỉ xem)</dd>
+          <dt>Mục đích</dt><dd>Khai báo hàng hóa trước khi nhập kho và bán</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Sản phẩm → Thêm</b>, nhập: tên, <b>mã vạch</b>, loại sản phẩm, đơn vị tính (Cái, Hộp, Chai, Lon, Gói, Kg, Lít, Thùng, Túi, Vỉ...), thuế VAT (%), <b>giá bán</b>, <b>tồn tối thiểu</b>, bảo hành; tùy chọn thương hiệu, nhà cung cấp, mô tả, ảnh.</li>
+          <li>Hệ thống kiểm tra <b>mã vạch không trùng</b> với sản phẩm khác (<em>"Mã vạch đã được dùng cho sản phẩm khác"</em>).</li>
+          <li>Hệ thống cấp mã <code>SP00101</code>. Giá vốn ban đầu bằng 0 và sẽ được cập nhật ở lần nhập kho đầu tiên.</li>
+          <li>Từ đó sản phẩm có thể quét mã vạch tại quầy, nhập/xuất/chuyển/kiểm kê.</li>
+        </ol>
+        <h4>Quy tắc</h4>
+        <ul>
+          <li><b>Giá bán và giá vốn tự cập nhật theo phiếu nhập gần nhất</b> (xem <a href="#nhap-kho">mục 6</a>).</li>
+          <li><b>Tồn tối thiểu</b> dùng để cảnh báo hàng sắp hết trong báo cáo tồn kho.</li>
+          <li>Màn hình chi tiết sản phẩm cho biết <b>số lượng còn trong từng kho</b>.</li>
+          <li>Xóa sản phẩm là ngừng kinh doanh (xóa mềm): không bán hay nhập tiếp được, hóa đơn cũ vẫn giữ nguyên.</li>
+        </ul>
+      </section>
+
+      <!-- 5 -->
+      <section class="block" id="ncc-kho">
+        <div class="sec-head"><span class="sec-no">05</span><h2>Luồng quản lý nhà cung cấp &amp; kho</h2></div>
+        <div class="two">
+          <div>
+            <h3>Nhà cung cấp</h3>
+            <ol class="steps">
+              <li>Admin hoặc Thủ kho thêm nhà cung cấp: tên, số điện thoại, email, địa chỉ theo 3 cấp hành chính.</li>
+              <li>Nhà cung cấp được chọn khi lập <b>phiếu nhập kho</b> và có thể gắn vào sản phẩm.</li>
+              <li>Xóa mềm: ẩn khỏi danh sách chọn, phiếu nhập cũ vẫn hiển thị đúng.</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Kho</h3>
+            <ol class="steps">
+              <li>Admin thêm kho: tên, điện thoại, email, ngày thành lập, thông tin thêm, địa chỉ. Các vai trò khác chỉ xem và chọn kho.</li>
+              <li>Mỗi kho có <b>tồn kho riêng</b> cho từng sản phẩm. Dòng tồn được tạo tự động ở lần nhập/nhận hàng đầu tiên.</li>
+              <li>Kho được chọn khi bán hàng (kho xuất bán), nhập, xuất, chuyển, kiểm kê và khi lọc báo cáo.</li>
+            </ol>
+          </div>
+        </div>
+        <p>Địa chỉ dùng chung một cấu trúc cho nhân viên, nhà cung cấp và kho. Hệ thống kiểm tra Phường/Xã thuộc đúng Quận/Huyện và Quận/Huyện thuộc đúng Tỉnh/Thành đã chọn. Đổi Tỉnh/Thành khi cập nhật thì phải chọn lại Quận và Phường tương ứng.</p>
+      </section>
+
+      <!-- 6 -->
+      <section class="block" id="nhap-kho">
+        <div class="sec-head"><span class="sec-no">06</span><h2>Luồng nhập kho</h2>
+          <span class="sec-sub">Chứng từ: Phiếu nhập kho <code>PN</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thủ kho, Admin</dd>
+          <dt>Mục đích</dt><dd>Ghi nhận hàng từ nhà cung cấp vào một kho, cập nhật giá vốn / giá bán và theo dõi lô, hạn sử dụng</dd>
+          <dt>Tiền điều kiện</dt><dd>Đã có sản phẩm, nhà cung cấp, kho</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Nhập kho → Thêm phiếu</b>, chọn <b>nhà cung cấp</b> và <b>kho nhận hàng</b>. Ngày nhập để trống thì lấy thời điểm hiện tại.</li>
+          <li>Thêm từng dòng hàng: sản phẩm, <b>số lượng</b> (lớn hơn 0), <b>giá nhập</b>, <b>giá bán</b>, và tùy chọn <b>số lô</b> (tối đa 50 ký tự) cùng <b>hạn sử dụng</b>.</li>
+          <li>Chọn trạng thái: <span class="chip pending">Chờ xử lý</span> (mặc định) hoặc <span class="chip done">Đã hoàn thành</span>.</li>
+          <li>Bấm <b>Xác nhận và lưu</b>. Server kiểm tra, cấp mã <code>PN000101</code>, tính tổng số lượng và tổng tiền nhập (giá nhập × số lượng).</li>
+          <li>Tồn kho của kho nhận được <b>cộng thêm</b> số lượng từng dòng.</li>
+          <li><b>Giá vốn</b> và <b>giá bán</b> của sản phẩm được cập nhật theo dòng của phiếu này.</li>
+        </ol>
+        <h4>Quy tắc &amp; ngoại lệ</h4>
+        <ul>
+          <li>Mỗi sản phẩm chỉ xuất hiện một lần trên một phiếu (<em>"Mỗi sản phẩm chỉ được xuất hiện một lần trong chứng từ"</em>).</li>
+          <li>Không nhập được hàng <b>đã quá hạn sử dụng</b> (<em>"Hạn sử dụng đã qua, không thể nhập kho"</em>). Sửa phiếu mà giữ nguyên ngày hạn cũ thì không bị kiểm tra lại.</li>
+          <li>Phiếu đang chờ: được sửa dòng (thêm, bớt, đổi số lượng/giá/lô); tồn kho điều chỉnh theo phần chênh lệch.</li>
+          <li><b>Hủy phiếu</b> sẽ trừ lại hàng đã nhập. Nếu số hàng đó đã bán đi một phần, tồn sẽ âm nên hệ thống từ chối (<em>"Số lượng tồn kho không đủ"</em>).</li>
+          <li>Kết quả: hàng sẵn sàng để bán; lô và hạn sử dụng xuất hiện trong báo cáo <a href="#bao-cao">Sắp hết hạn</a>.</li>
+        </ul>
+      </section>
+
+      <!-- 7 -->
+      <section class="block" id="ban-hang">
+        <div class="sec-head"><span class="sec-no">07</span><h2>Luồng bán hàng tại quầy</h2>
+          <span class="sec-sub">Chứng từ: Hóa đơn bán <code>HD</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thu ngân, Admin</dd>
+          <dt>Mục đích</dt><dd>Bán hàng cho khách, thu tiền, trừ tồn kho</dd>
+          <dt>Tiền điều kiện</dt><dd>Kho bán có tồn; sản phẩm đang kinh doanh</dd>
+        </dl>
+        <ol class="steps">
+          <li>Thu ngân vào <b>Bán hàng → Tạo hóa đơn</b> và chọn <b>kho bán</b>.</li>
+          <li>Đưa mã vạch vào máy quét (hoặc gõ mã rồi Enter). Hệ thống tìm sản phẩm theo mã vạch trong kho đó:
+            <ul>
+              <li>Chưa có trên hóa đơn: thêm dòng mới, số lượng 1, đơn giá lấy từ giá bán hiện hành.</li>
+              <li>Đã có: tăng số lượng dòng đó thêm 1.</li>
+              <li>Mỗi dòng hiển thị <b>tồn còn lại</b> trong kho để thu ngân biết trước khi bán vượt.</li>
+            </ul>
+          </li>
+          <li>Có thể chọn sản phẩm thủ công, sửa số lượng, nhập <b>% giảm giá trên từng dòng</b> (0–100%). Thành tiền dòng = đơn giá × số lượng × (100% − % giảm).</li>
+          <li>Nhập <b>giảm giá trên toàn hóa đơn</b> (số tiền), chọn <b>khách hàng</b> hoặc để trống (khách lẻ).</li>
+          <li>Chọn <b>phương thức thanh toán</b>:
+            <ul>
+              <li><b>Tiền mặt:</b> nhập tiền khách đưa, màn hình hiện <b>tiền thối</b>.</li>
+              <li><b>Thẻ / Chuyển khoản:</b> số tiền thu bằng đúng tổng tiền, tiền thối = 0.</li>
+            </ul>
+          </li>
+          <li>Chọn trạng thái <span class="chip pending">Chờ xử lý</span> (mặc định, ví dụ khách chưa thanh toán xong) hoặc <span class="chip done">Đã hoàn thành</span>, rồi lưu.</li>
+          <li>Server tính lại toàn bộ tiền từ giá trong hệ thống: tổng tiền = tổng thành tiền các dòng − giảm giá hóa đơn. Server cũng chụp giá vốn lên từng dòng để tính lãi về sau.</li>
+          <li>Server khóa dòng tồn của từng sản phẩm, kiểm tra đủ hàng, <b>trừ tồn kho</b>, cấp mã <code>HD000101</code>. Màn hình báo "HD000101 – Thêm thành công".</li>
+        </ol>
+        <h4>Quy tắc &amp; lỗi</h4>
+        <div class="tbl"><table>
+          <thead><tr><th>Tình huống</th><th>Thông báo</th></tr></thead>
+          <tbody>
+            <tr><td>Giảm giá hóa đơn lớn hơn tổng tiền hàng</td><td><em>"Giảm giá lớn hơn tổng tiền hàng"</em></td></tr>
+            <tr><td>Hoàn thành hóa đơn tiền mặt mà tiền khách đưa ít hơn tổng tiền</td><td><em>"Tiền khách đưa chưa đủ"</em></td></tr>
+            <tr><td>Bán vượt tồn kho</td><td><em>"Số lượng tồn kho không đủ"</em></td></tr>
+            <tr><td>Một sản phẩm xuất hiện 2 dòng</td><td><em>"Mỗi sản phẩm chỉ được xuất hiện một lần trong chứng từ"</em></td></tr>
+            <tr><td>Mã vạch không tồn tại / sản phẩm ngừng kinh doanh</td><td><em>"Sản phẩm không tồn tại hoặc đã ngừng kinh doanh"</em></td></tr>
+          </tbody>
+        </table></div>
+        <h4>Sau khi lập hóa đơn</h4>
+        <ul>
+          <li><b>Hóa đơn đang chờ:</b> sửa được dòng hàng, khách, giảm giá, thanh toán; hoặc chuyển sang Hoàn thành / Hủy.</li>
+          <li><b>Hóa đơn đã hoàn thành:</b> các ô nhập bị khóa, chỉ được <b>Hủy</b> (hàng quay lại kho). Trên màn hình chi tiết có nút <b>"Trả hàng"</b> để lập phiếu trả.</li>
+          <li><b>Không hủy được hóa đơn đang có phiếu trả hàng còn hiệu lực</b> (<em>"Hóa đơn đã có phiếu trả hàng, hãy hủy phiếu trả trước"</em>), vì hàng trả đã nhập lại kho, hủy thêm hóa đơn sẽ cộng tồn hai lần.</li>
+          <li>Hóa đơn đã hoàn thành không xóa được; hóa đơn đang chờ xóa được (xóa mềm, hàng quay lại kho).</li>
+        </ul>
+      </section>
+
+      <!-- 8 -->
+      <section class="block" id="tra-hang">
+        <div class="sec-head"><span class="sec-no">08</span><h2>Luồng trả hàng</h2>
+          <span class="sec-sub">Chứng từ: Phiếu trả hàng <code>TH</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thu ngân, Admin (kế toán xem)</dd>
+          <dt>Mục đích</dt><dd>Nhận lại hàng khách đã mua, hoàn tiền đúng số khách thực trả, nhập lại kho</dd>
+          <dt>Tiền điều kiện</dt><dd>Hóa đơn gốc ở trạng thái <span class="chip done">Đã hoàn thành</span></dd>
+        </dl>
+        <ol class="steps">
+          <li>Mở <b>Trả hàng → Tạo phiếu</b>, hoặc bấm nút <b>"Trả hàng"</b> trên chi tiết hóa đơn (hóa đơn được chọn sẵn).</li>
+          <li>Tìm hóa đơn theo mã (VD <code>HD000101</code>), tên hoặc số điện thoại khách. Chỉ hóa đơn đã hoàn thành mới hiện ra.</li>
+          <li>Hệ thống hiển thị từng dòng của hóa đơn: <b>đã mua</b>, <b>còn được trả</b> (đã trừ số lượng của các phiếu trả trước đó), <b>đơn giá hoàn</b>.</li>
+          <li>Nhân viên nhập <b>số lượng trả</b> cho từng mặt hàng (không vượt "còn được trả"), nhập <b>lý do</b> (bắt buộc), chọn <b>phương thức hoàn tiền</b> (mặc định giống hóa đơn gốc) và trạng thái.</li>
+          <li>Màn hình hiện <b>tiền hoàn dự kiến</b>; khi lưu, server tính chính xác và cấp mã <code>TH000101</code>.</li>
+          <li>Hàng trả được <b>cộng lại vào kho</b> của hóa đơn gốc.</li>
+        </ol>
+        <h4>Cách tính tiền hoàn</h4>
+        <p>Khách được hoàn đúng số đã trả cho món đó: đã trừ % giảm giá dòng và <b>phần giảm giá hóa đơn được chia theo tỷ lệ giá trị</b>.</p>
+        <div class="note info"><b>Ví dụ:</b> hóa đơn có 10 hộp sữa chua (100.000 ₫) và 2 bao gạo (80.000 ₫), giảm giá hóa đơn 6.000 ₫, khách trả 174.000 ₫, tức 96,67% giá trị dòng hàng. Trả 3 hộp sữa chua: 30.000 × 174/180 = <b>29.000 ₫</b>. Đơn giá hoàn mỗi hộp hiển thị 9.667 ₫. Trả toàn bộ hóa đơn thì hoàn đúng 174.000 ₫.</div>
+        <h4>Quy tắc &amp; lỗi</h4>
+        <ul>
+          <li>Trả quá số còn lại: <em>"Số lượng trả vượt quá số lượng còn được trả"</em>.</li>
+          <li>Sản phẩm không có trên hóa đơn: <em>"Sản phẩm không có trong hóa đơn"</em>.</li>
+          <li>Hóa đơn chưa hoàn thành: <em>"Chỉ trả hàng cho hóa đơn đã hoàn thành"</em>.</li>
+          <li>Hai quầy cùng lập phiếu trả cho một hóa đơn: hóa đơn bị khóa trong lúc ghi nên không thể cùng trả vượt số lượng.</li>
+          <li>Phiếu đang chờ: sửa được dòng (giới hạn là phần còn lại cộng với chính số lượng đang có trên phiếu); phiếu đã hoàn thành chỉ hủy được, khi đó hàng bị trừ lại khỏi kho.</li>
+          <li>Chỉ phiếu trả <b>đã hoàn thành</b> mới được trừ vào doanh thu trong báo cáo.</li>
+        </ul>
+      </section>
+
+      <!-- 9 -->
+      <section class="block" id="xuat-kho">
+        <div class="sec-head"><span class="sec-no">09</span><h2>Luồng xuất kho (không qua bán hàng)</h2>
+          <span class="sec-sub">Chứng từ: Phiếu xuất kho <code>PX</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thủ kho, Admin</dd>
+          <dt>Mục đích</dt><dd>Ghi nhận hàng rời kho vì lý do khác bán lẻ: hàng hỏng, hết hạn, xuất dùng nội bộ, giao đơn đặt trước...</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Xuất kho → Thêm phiếu</b>, chọn <b>kho xuất</b>, nhập <b>lý do xuất</b> (bắt buộc), tùy chọn gắn khách hàng và ngày xuất.</li>
+          <li>Thêm dòng sản phẩm và số lượng.</li>
+          <li>Lưu: hệ thống cấp mã <code>PX000101</code> và <b>trừ tồn kho</b>.</li>
+          <li>Giá trị phiếu tính theo <b>giá vốn</b> (hàng không bán nên không có doanh thu), dùng để biết giá trị hàng hao hụt.</li>
+        </ol>
+        <p>Quy tắc sửa, hủy, xóa giống quy tắc chung. Xuất vượt tồn bị từ chối.</p>
+      </section>
+
+      <!-- 10 -->
+      <section class="block" id="chuyen-kho">
+        <div class="sec-head"><span class="sec-no">10</span><h2>Luồng chuyển kho</h2>
+          <span class="sec-sub">Chứng từ: Phiếu chuyển kho <code>CK</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thủ kho, Admin</dd>
+          <dt>Mục đích</dt><dd>Điều chuyển hàng giữa hai kho, theo dõi được hàng đang trên đường vận chuyển</dd>
+        </dl>
+        <div class="diagram trans" role="img" aria-label="Trạng thái phiếu chuyển kho và tác động tồn kho">
+          <div class="trans-row"><span class="trans-from">Lập phiếu</span><span class="arrow" aria-hidden="true">→</span><span class="chip pending">Đang vận chuyển</span><span class="or">kho chuyển bị trừ, kho nhận chưa cộng</span></div>
+          <div class="trans-row"><span class="trans-from"><span class="chip pending">Đang vận chuyển</span></span><span class="arrow" aria-hidden="true">→</span><span class="chip done">Đã nhận hàng</span><span class="or">kho nhận được cộng</span></div>
+          <div class="trans-row"><span class="trans-from"><span class="chip pending">Đang vận chuyển</span></span><span class="arrow" aria-hidden="true">→</span><span class="chip cancel">Đã hủy</span><span class="or">hàng quay về kho chuyển</span></div>
+          <div class="trans-row"><span class="trans-from"><span class="chip done">Đã nhận hàng</span></span><span class="arrow" aria-hidden="true">→</span><span class="chip cancel">Đã hủy</span><span class="or">trừ kho nhận, cộng lại kho chuyển</span></div>
+        </div>
+        <ol class="steps">
+          <li>Vào <b>Chuyển kho → Tạo phiếu</b>, chọn <b>kho chuyển</b> và <b>kho nhận</b> (kho nhận không được trùng kho chuyển).</li>
+          <li>Thêm sản phẩm và số lượng; mỗi dòng hiển thị <b>tồn hiện có ở kho chuyển</b>, tô đỏ nếu số lượng chuyển lớn hơn tồn.</li>
+          <li>Lưu ở trạng thái <b>Đang vận chuyển</b> (mặc định): hàng <b>rời kho chuyển ngay</b>, kho nhận chưa được cộng. Cấp mã <code>CK000101</code>.</li>
+          <li>Khi hàng tới nơi, mở phiếu và chuyển trạng thái sang <b>Đã nhận hàng</b>: kho nhận được cộng số lượng. Nếu giao xong ngay, có thể chọn Đã nhận hàng từ lúc tạo.</li>
+          <li>Hủy phiếu: hệ thống hoàn tác cả hai phía. Nếu kho nhận đã bán bớt số hàng đó thì không hủy được (tồn kho nhận sẽ âm).</li>
+        </ol>
+        <ul>
+          <li>Phiếu đang vận chuyển còn sửa được kho nhận, dòng hàng và ghi chú; kho chuyển cố định sau khi tạo.</li>
+          <li>Lỗi thường gặp: <em>"Kho nhận phải khác kho chuyển"</em>, <em>"Số lượng tồn kho không đủ"</em>.</li>
+          <li>Khi hai phiếu chuyển ngược chiều chạy cùng lúc, hệ thống khóa các kho theo một thứ tự cố định để tránh treo.</li>
+        </ul>
+      </section>
+
+      <!-- 11 -->
+      <section class="block" id="kiem-ke">
+        <div class="sec-head"><span class="sec-no">11</span><h2>Luồng kiểm kê kho</h2>
+          <span class="sec-sub">Chứng từ: Phiếu kiểm kê <code>KK</code></span></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Thủ kho, Admin</dd>
+          <dt>Mục đích</dt><dd>Đối chiếu số lượng đếm thực tế với số trên hệ thống và cân bằng kho</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Kiểm kê → Tạo phiếu</b>, chọn <b>kho kiểm</b>.</li>
+          <li>Bấm <b>"Nạp toàn bộ tồn kho"</b>: mọi sản phẩm đang có trong kho được đưa vào phiếu với <b>tồn hệ thống</b> và ô <b>đếm được</b> điền sẵn bằng tồn hệ thống. Có thể thêm từng sản phẩm lẻ hoặc bỏ dòng.</li>
+          <li>Nhân viên đi đếm thực tế, sửa ô <b>đếm được</b>. Cột <b>chênh lệch</b> = đếm được − tồn hệ thống (đỏ khi thiếu, xanh khi thừa), cuối phiếu có tổng chênh lệch.</li>
+          <li>Lưu ở trạng thái <b>Đang kiểm</b> (lưu nháp) để đếm tiếp sau. Lúc này tồn kho <b>không thay đổi</b>.</li>
+          <li>Khi đếm xong, chọn <b>"Cân bằng kho theo số đếm"</b> và xác nhận. Hệ thống <b>đọc lại tồn hệ thống ngay lúc đó</b> (có khóa), tính chênh lệch và đặt tồn kho bằng số đếm được.</li>
+          <li>Phiếu đã cân bằng là <b>cố định</b>: không sửa, không hủy, không xóa. Muốn điều chỉnh thì lập phiếu kiểm kê mới.</li>
+        </ol>
+        <div class="note info"><b>Vì sao đọc lại tồn khi cân bằng:</b> trong lúc kiểm kê, quầy vẫn bán hàng. Nếu dùng tồn hệ thống chụp lúc bắt đầu, các hóa đơn bán trong lúc đếm sẽ bị "cộng ngược" lại. Đọc lại tại thời điểm cân bằng giúp số liệu khớp.</div>
+        <p>Phiếu đang kiểm có thể hủy hoặc xóa mà không ảnh hưởng tồn kho.</p>
+      </section>
+
+      <!-- 12 -->
+      <section class="block" id="bao-cao">
+        <div class="sec-head"><span class="sec-no">12</span><h2>Luồng xem báo cáo</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Admin, Kế toán (đầy đủ); Thủ kho (tồn kho, hạn sử dụng)</dd>
+          <dt>Mục đích</dt><dd>Theo dõi kết quả kinh doanh và tình trạng hàng hóa</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Báo cáo</b>; chỉ các tab đúng quyền mới hiện ra.</li>
+          <li>Chọn khoảng thời gian (mặc định 30 ngày gần nhất, tối đa 366 ngày, tính theo ngày giờ Việt Nam) và kho (hoặc tất cả kho), bấm <b>Xem</b>.</li>
+          <li>Bấm <b>"Xuất CSV"</b> để tải dữ liệu tab hiện tại, mở được bằng Excel với đầy đủ tiếng Việt.</li>
+        </ol>
+        <div class="tbl"><table>
+          <thead><tr><th>Tab</th><th>Nội dung</th><th>Cách tính</th></tr></thead>
+          <tbody>
+            <tr><td>Doanh thu</td><td>Thẻ tổng: số hóa đơn, doanh thu, hoàn trả, doanh thu thuần, lãi gộp. Bảng từng ngày kèm thanh biểu đồ.</td><td>Chỉ hóa đơn <b>đã hoàn thành</b>. Hoàn trả = phiếu trả đã hoàn thành theo ngày trả. Giá vốn = giá vốn hàng bán − giá vốn hàng trả lại. Lãi gộp = doanh thu thuần − giá vốn. Ngày không có giao dịch vẫn hiện số 0.</td></tr>
+            <tr><td>Sản phẩm bán chạy</td><td>Top sản phẩm theo số lượng: mã, tên, số lượng, doanh thu, lãi gộp</td><td>Theo dòng hóa đơn (đã trừ giảm giá dòng; chưa chia giảm giá hóa đơn, chưa trừ hàng trả)</td></tr>
+            <tr><td>Theo nhân viên</td><td>Số hóa đơn và doanh thu của từng nhân viên</td><td>Hóa đơn đã hoàn thành, sắp xếp doanh thu giảm dần</td></tr>
+            <tr><td>Tồn kho</td><td>Tồn từng sản phẩm theo kho, tồn tối thiểu, giá vốn, giá trị tồn; thẻ tổng số dòng, số mặt hàng dưới tối thiểu, tổng giá trị tồn</td><td>Dòng tồn ≤ tồn tối thiểu tô vàng; ô "Chỉ hàng dưới tồn tối thiểu" để lọc danh sách cần nhập thêm</td></tr>
+            <tr><td>Sắp hết hạn</td><td>Các lô hết hạn trong 7 / 30 / 90 ngày tới: kho, sản phẩm, số lô, hạn dùng, còn bao nhiêu ngày, số lượng còn, phiếu nhập gốc</td><td>Lô đã hết hạn tô đỏ, còn ≤ 7 ngày tô vàng. Số lượng còn của từng lô được ước tính theo nguyên tắc nhập trước – xuất trước</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <!-- 13 -->
+      <section class="block" id="nhat-ky">
+        <div class="sec-head"><span class="sec-no">13</span><h2>Luồng tra cứu nhật ký hệ thống</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Admin</dd>
+          <dt>Mục đích</dt><dd>Biết ai đã làm gì, lúc nào, trên chứng từ nào, kể cả các thao tác bị từ chối</dd>
+        </dl>
+        <h3>Hệ thống tự ghi (không cần thao tác)</h3>
+        <ul>
+          <li>Mọi thao tác <b>thêm, sửa, xóa</b> trên mọi chức năng, và mọi lần <b>đăng nhập, đăng xuất</b>, thành công hay thất bại.</li>
+          <li>Mỗi bản ghi gồm: thời gian, tài khoản (với đăng nhập sai thì là tên đăng nhập đã gõ), thao tác, chức năng, <b>mã chứng từ</b> liên quan (VD <code>TH000101</code>), kết quả và mã lỗi nếu có, địa chỉ IP.</li>
+          <li>Nội dung dữ liệu gửi lên (mật khẩu, thông tin chi tiết) <b>không</b> được lưu. Các thao tác chỉ xem không ghi nhật ký.</li>
+          <li>Nhật ký được ghi riêng, nên thao tác bị lỗi và đã hoàn tác vẫn để lại dấu vết.</li>
+        </ul>
+        <h3>Tra cứu</h3>
+        <ol class="steps">
+          <li>Vào <b>Nhật ký hệ thống</b>, lọc theo từ khóa (tài khoản, chức năng, mã chứng từ), loại thao tác (Thêm, Sửa, Xóa, Đăng nhập, Đăng xuất) và khoảng ngày.</li>
+          <li>Mỗi dòng hiện kết quả <b>Thành công</b> hoặc <b>Lỗi + mã lỗi</b> (VD lỗi 1616 khi cố hủy hóa đơn đã có phiếu trả, 9992 khi không có quyền).</li>
+        </ol>
+      </section>
+
+      <!-- 14 -->
+      <section class="block" id="checklist-admin">
+        <div class="sec-head"><span class="sec-no">14</span><h2>Luồng quản lý checklist ca</h2></div>
+        <dl class="meta">
+          <dt>Người thực hiện</dt><dd>Admin</dd>
+          <dt>Mục đích</dt><dd>Thay đổi danh sách việc đầu ca / cuối ca mà không cần sửa phần mềm</dd>
+        </dl>
+        <ol class="steps">
+          <li>Vào <b>Checklist ca</b>; bảng liệt kê mọi mục, kể cả mục đang ẩn.</li>
+          <li><b>Thêm mục:</b> nhập mã (chữ thường, số, gạch ngang; 2–50 ký tự; không đổi sau khi tạo), nội dung công việc, nhóm (Đầu ca / Cuối ca) và thứ tự hiển thị. Trùng mã báo <em>"Mã mục checklist đã tồn tại"</em>.</li>
+          <li><b>Sửa mục:</b> đổi nội dung, nhóm, thứ tự ngay trên dòng rồi bấm Lưu.</li>
+          <li><b>Ẩn mục:</b> tắt công tắc "Hiển thị". Mục không còn xuất hiện ở trang chính cho các ca tiếp theo; các ca đã tick vẫn giữ lịch sử. Hệ thống không cho xóa hẳn.</li>
+        </ol>
+      </section>
+
+      <!-- 15 -->
+      <section class="block" id="gioi-han">
+        <div class="sec-head"><span class="sec-no">15</span><h2>Phạm vi hiện tại &amp; giới hạn</h2></div>
+        <ul>
+          <li><b>Khuyến mãi:</b> đã có dữ liệu và hiển thị chương trình đang áp dụng ở trang chính, nhưng chưa có màn hình quản lý (menu ghi "Sắp ra mắt") và chưa tự áp dụng vào hóa đơn.</li>
+          <li><b>Khách hàng:</b> được chọn khi bán hàng và xuất kho, điểm tích lũy khởi tạo bằng 0; chưa có màn hình quản lý khách hàng riêng và chưa tự cộng điểm.</li>
+          <li><b>Lô hàng:</b> lô và hạn sử dụng ghi nhận khi nhập kho; hệ thống chưa ghi lô cụ thể lúc bán, nên số lượng còn của từng lô trong báo cáo là ước tính (nhập trước – xuất trước). Hàng nhận qua chuyển kho chưa mang theo số lô.</li>
+          <li><b>Báo cáo sản phẩm bán chạy:</b> doanh thu theo dòng hàng, chưa chia giảm giá cấp hóa đơn và chưa trừ hàng trả.</li>
+          <li><b>In hóa đơn:</b> chưa có mẫu in hóa đơn cho máy in nhiệt.</li>
+          <li><b>Tự động kiểm thử (CI):</b> chưa thiết lập theo yêu cầu dự án; hệ thống có bộ kiểm thử đơn vị cho các quy tắc nghiệp vụ chính (tính tiền, tồn kho, trả hàng, chuyển kho, kiểm kê, nhật ký).</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <footer>Supermarket Management · Đặc tả chức năng theo luồng nghiệp vụ · 22/10/2026</footer>
+</div>
+
+</body></html>

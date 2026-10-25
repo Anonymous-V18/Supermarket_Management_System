@@ -23,6 +23,8 @@
 		<mapstruct_lombok_binding.version>0.2.0</mapstruct_lombok_binding.version>
 		<lombok.version>1.18.46</lombok.version>
 		<mysql.version>9.7.0</mysql.version>
+		<pdfbox.version>3.0.8</pdfbox.version>
+		<jsoup.version>1.22.1</jsoup.version>
 		<java.version>26</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -78,6 +80,17 @@
 			<artifactId>mapstruct</artifactId>
 			<version>${mapstruct.version}</version>
 			<optional>true</optional>
+		</dependency>
+		<!-- Chatbot knowledge base: text extraction from uploaded PDF / HTML documents -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>${pdfbox.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>${jsoup.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

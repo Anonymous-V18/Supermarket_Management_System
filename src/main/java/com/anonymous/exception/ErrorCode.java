@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 
 // Codes are grouped by area (1000 request, 1100 account, 1200 people, 1300 address, 1400 catalogue,
-// 1500 warehouse, 1600 documents, 1700 operations, 99xx security/system) and must stay unique.
+// 1500 warehouse, 1600 documents, 1700 operations, 1800 chatbot, 99xx security/system) and must stay unique.
 @Getter
 public enum ErrorCode {
 
@@ -68,6 +68,14 @@ public enum ErrorCode {
     CODE_SEQUENCE_NOT_EXIST(1701, "Chưa cấu hình bộ sinh mã !", HttpStatus.INTERNAL_SERVER_ERROR),
     CHECKLIST_ITEM_NOT_EXIST(1702, "Mục checklist không tồn tại !", HttpStatus.NOT_FOUND),
     CHECKLIST_ITEM_CODE_EXISTED(1703, "Mã mục checklist đã tồn tại !", HttpStatus.CONFLICT),
+
+    CONVERSATION_NOT_EXIST(1800, "Cuộc trò chuyện không tồn tại !", HttpStatus.NOT_FOUND),
+    CHAT_MESSAGE_NOT_EXIST(1801, "Tin nhắn không tồn tại !", HttpStatus.NOT_FOUND),
+    CHAT_RATE_LIMITED(1802, "Bạn hỏi quá nhanh, vui lòng thử lại sau ít giây !", HttpStatus.TOO_MANY_REQUESTS),
+    KB_DOCUMENT_NOT_EXIST(1803, "Tài liệu không tồn tại !", HttpStatus.NOT_FOUND),
+    KB_FILE_TYPE_UNSUPPORTED(1804, "Chỉ hỗ trợ tệp .md, .txt, .pdf, .html !", HttpStatus.BAD_REQUEST),
+    KB_FILE_EMPTY(1805, "Tệp không có nội dung văn bản !", HttpStatus.BAD_REQUEST),
+    KB_ROLES_REQUIRED(1806, "Chọn ít nhất một vai trò được xem tài liệu !", HttpStatus.BAD_REQUEST),
 
     EXPIRATION_TOKEN(9990, "Phiên đăng nhập đã hết hạn !", HttpStatus.UNAUTHORIZED),
     TOKEN_INVALID(9991, "Phiên đăng nhập không hợp lệ !", HttpStatus.UNAUTHORIZED),

@@ -1,0 +1,20 @@
+{"q":"Doanh thu tháng này","roles":["ACCOUNTING_STAFF"],"kind":"TOOL","tool":"revenue"}
+{"q":"Lợi nhuận gộp tuần trước","roles":["ACCOUNTING_STAFF"],"kind":"TOOL","tool":"revenue"}
+{"q":"Vẽ biểu đồ doanh thu tuần này","roles":["ACCOUNTING_STAFF"],"kind":"TOOL","tool":"revenue"}
+{"q":"Doanh thu tháng này là bao nhiêu?","roles":["SALESMAN"],"kind":"DENIED","tool":"revenue"}
+{"q":"Tồn kho hiện tại","roles":["EMPLOYEE"],"kind":"DENIED"}
+{"q":"Những mặt hàng nào sắp hết hàng?","roles":["STOREKEEPER"],"kind":"TOOL","tool":"inventory"}
+{"q":"Hóa đơn HD101 gồm những gì?","roles":["SALESMAN"],"kind":"TOOL","tool":"invoice_lookup"}
+{"q":"Ngày 22/10/2026 có bao nhiêu đơn hàng ?","roles":["ADMIN"],"kind":"TOOL","tool":"invoice_stats"}
+{"q":"Giá sữa chua Vinamilk bao nhiêu?","roles":["SALESMAN"],"kind":"TOOL","tool":"product_lookup"}
+{"q":"Ca này tôi bán được bao nhiêu?","roles":["SALESMAN"],"kind":"TOOL","tool":"my_shift_summary"}
+{"q":"Thống kê dữ liệu giúp tôi","roles":["STOREKEEPER"],"kind":"TOOL","tool":"data_overview"}
+{"q":"Tìm nhà cung cấp Vinamilk","roles":["STOREKEEPER"],"kind":"TOOL","tool":"supplier_lookup"}
+{"q":"Tìm nhân viên Nguyễn Văn A","roles":["ADMIN"],"kind":"TOOL","tool":"employee_lookup"}
+{"q":"Có những kho nào?","roles":["STOREKEEPER"],"kind":"TOOL","tool":"warehouse_lookup"}
+{"q":"Có chương trình khuyến mãi nào không?","roles":["SALESMAN"],"kind":"TOOL","tool":"promotion_lookup"}
+{"q":"Ai đang trực ca","roles":["SALESMAN"],"kind":"TOOL","tool":"shift_staff"}
+{"q":"Cách tính tiền hoàn khi khách trả hàng?","roles":["SALESMAN"],"kind":"DOCS"}
+{"q":"Doanh thu thuần được tính thế nào?","roles":["ACCOUNTING_STAFF"],"kind":"DOCS"}
+{"q":"Nhân viên có những quyền nào ?","roles":["SALESMAN"],"kind":"DOCS"}
+{"q":"xin chào","roles":["SALESMAN"],"kind":"SMALLTALK"}

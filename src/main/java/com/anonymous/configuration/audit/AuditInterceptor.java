@@ -67,7 +67,8 @@ public class AuditInterceptor implements HandlerInterceptor {
     }
 
     static String actionOf(String method, String path) {
-        if (IGNORED_PATHS.contains(path)) {
+        // Chatbot questions are private reads, not business writes (knowledge-base changes are still audited)
+        if (IGNORED_PATHS.contains(path) || path.startsWith("/chatbot/")) {
             return null;
         }
         if ("/auth/login".equals(path)) {

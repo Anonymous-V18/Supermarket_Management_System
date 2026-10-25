@@ -1,0 +1,67 @@
+{"q":"Cách tính tiền hoàn khi trả hàng","heading":"Cách tính tiền hoàn"}
+{"q":"Khách trả lại 3 hộp sữa chua thì được hoàn bao nhiêu tiền?","heading":"Cách tính tiền hoàn"}
+{"q":"Trả hàng quá số lượng còn lại thì báo lỗi gì?","heading":"Luồng trả hàng > Quy tắc & lỗi"}
+{"q":"Hóa đơn chưa hoàn thành có trả hàng được không?","heading":"Luồng trả hàng"}
+{"q":"Các bước lập phiếu trả hàng","heading":"Luồng trả hàng"}
+{"q":"Mã nhân viên có dạng như thế nào?","heading":"Mã nghiệp vụ tự sinh"}
+{"q":"Tiền tố mã phiếu chuyển kho là gì","heading":"Mã nghiệp vụ tự sinh"}
+{"q":"Chứng từ đã hoàn thành có sửa được không?","heading":"Trạng thái chứng từ"}
+{"q":"Các trạng thái của chứng từ","heading":"Trạng thái chứng từ"}
+{"q":"Hóa đơn đang chờ có trừ tồn kho không?","heading":"Chứng từ ảnh hưởng tồn kho thế nào"}
+{"q":"Tồn kho có bị âm không?","heading":"Chứng từ ảnh hưởng tồn kho thế nào"}
+{"q":"Xóa sản phẩm thì hóa đơn cũ có bị mất không?","heading":"Xóa mềm"}
+{"q":"Dữ liệu có bị xóa vĩnh viễn không?","heading":"Xóa mềm"}
+{"q":"Tiền được làm tròn thế nào?","heading":"Tiền, giá và dữ liệu nhập"}
+{"q":"Đổi giá sản phẩm có làm sai hóa đơn cũ không","heading":"Tiền, giá và dữ liệu nhập"}
+{"q":"Thủ kho có được xem báo cáo doanh thu không?","heading":"Ma trận phân quyền"}
+{"q":"Kế toán có quyền gì?","heading":"Các vai trò (quyền) trong hệ thống"}
+{"q":"Đăng nhập sai mật khẩu thì báo gì?","heading":"Đăng nhập"}
+{"q":"Token đăng nhập có hạn bao lâu?","heading":"Đăng nhập"}
+{"q":"Gia hạn phiên đăng nhập như thế nào","heading":"Đăng xuất & gia hạn phiên"}
+{"q":"Cách đổi mật khẩu","heading":"Tài khoản cá nhân"}
+{"q":"Ca chiều bắt đầu lúc mấy giờ?","heading":"Xác định ca làm việc"}
+{"q":"1 giờ sáng thuộc ca nào?","heading":"Xác định ca làm việc"}
+{"q":"Việc cần làm đầu ca","heading":"Checklist ca"}
+{"q":"Trang chính hiển thị số liệu gì trong ca","heading":"Số liệu trong ca"}
+{"q":"Thêm nhân viên mới cần nhập gì?","heading":"Thêm nhân viên"}
+{"q":"Mật khẩu ban đầu của nhân viên mới là gì","heading":"Thêm nhân viên"}
+{"q":"Cho nhân viên nghỉ việc thì tài khoản ra sao?","heading":"Tra cứu, sửa, cho nghỉ"}
+{"q":"Mã vạch bị trùng thì sao","heading":"Luồng quản lý sản phẩm"}
+{"q":"Tồn tối thiểu dùng để làm gì?","heading":"Luồng quản lý sản phẩm > Quy tắc"}
+{"q":"Ai được thêm kho mới?","heading":"Luồng quản lý nhà cung cấp & kho > Kho"}
+{"q":"Thêm nhà cung cấp cần thông tin gì","heading":"Nhà cung cấp"}
+{"q":"Các bước nhập kho","heading":"Luồng nhập kho"}
+{"q":"Có nhập được hàng đã hết hạn sử dụng không?","heading":"Luồng nhập kho > Quy tắc & ngoại lệ"}
+{"q":"Hủy phiếu nhập khi hàng đã bán một phần","heading":"Luồng nhập kho > Quy tắc & ngoại lệ"}
+{"q":"Quy trình bán hàng tại quầy","heading":"Luồng bán hàng tại quầy"}
+{"q":"Thanh toán bằng thẻ thì tiền thối bao nhiêu?","heading":"Luồng bán hàng tại quầy"}
+{"q":"Tiền khách đưa không đủ thì báo lỗi gì?","heading":"Luồng bán hàng tại quầy > Quy tắc & lỗi"}
+{"q":"Giảm giá lớn hơn tổng tiền hàng","heading":"Luồng bán hàng tại quầy > Quy tắc & lỗi"}
+{"q":"Hủy hóa đơn đã có phiếu trả hàng được không?","heading":"Sau khi lập hóa đơn"}
+{"q":"Xuất kho hàng hỏng như thế nào","heading":"Luồng xuất kho"}
+{"q":"Chuyển hàng giữa hai kho","heading":"Luồng chuyển kho"}
+{"q":"Kho nhận phải khác kho chuyển","heading":"Luồng chuyển kho"}
+{"q":"Quy trình kiểm kê kho","heading":"Luồng kiểm kê kho"}
+{"q":"Cân bằng kho theo số đếm","heading":"Luồng kiểm kê kho"}
+{"q":"Lãi gộp được tính như thế nào?","heading":"Luồng xem báo cáo"}
+{"q":"Báo cáo hàng sắp hết hạn","heading":"Luồng xem báo cáo"}
+{"q":"Xuất báo cáo ra CSV","heading":"Luồng xem báo cáo"}
+{"q":"Nhật ký hệ thống ghi lại những gì?","heading":"Hệ thống tự ghi"}
+{"q":"Lọc nhật ký theo mã chứng từ","heading":"Luồng tra cứu nhật ký hệ thống"}
+{"q":"Ẩn một mục checklist ca","heading":"Luồng quản lý checklist ca"}
+{"q":"Thêm mục checklist mới","heading":"Luồng quản lý checklist ca"}
+{"q":"Có mẫu in hóa đơn cho máy in nhiệt chưa?","heading":"Phạm vi hiện tại & giới hạn"}
+{"q":"Khuyến mãi có tự áp dụng vào hóa đơn không","heading":"Phạm vi hiện tại & giới hạn"}
+{"q":"cach tinh tien hoan","heading":"Cách tính tiền hoàn"}
+{"q":"quy trinh kiem ke kho","heading":"Luồng kiểm kê kho"}
+{"q":"doi mat khau","heading":"Tài khoản cá nhân"}
+{"q":"Thủ đô của Pháp là gì?","none":true}
+{"q":"Thời tiết hôm nay thế nào?","none":true}
+{"q":"Công thức nấu phở bò","none":true}
+{"q":"Giá vàng hôm nay","none":true}
+{"q":"Lương tháng của nhân viên thu ngân là bao nhiêu?","none":true}
+{"q":"Chính sách nghỉ phép năm","none":true}
+{"q":"Còn nếu trả quá số lượng thì sao?","after":"Luồng trả hàng > Cách tính tiền hoàn","heading":"Luồng trả hàng"}
+{"q":"Vậy hủy được không?","after":"Luồng bán hàng tại quầy > Sau khi lập hóa đơn","heading":"Sau khi lập hóa đơn"}
+{"q":"Còn cuối ca thì sao?","after":"Luồng nhận ca: Trang chính & checklist ca > Checklist ca","heading":"Checklist ca"}
+{"q":"Thế lỗi thường gặp là gì?","after":"Luồng chuyển kho","heading":"Luồng chuyển kho"}

@@ -12,6 +12,24 @@ services:
       - "9999:9999"
     env_file:
       - .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      - qdrant
+    networks:
+      - supermarket-network
+
+  # ==========================================================
+  # Qdrant vector DB for the chatbot (vectors only; texts stay in MySQL)
+  # ==========================================================
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    container_name: supermarket-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_storage:/qdrant/storage
     networks:
       - supermarket-network
 
@@ -30,6 +48,24 @@ services:
       - supermarket-management
     networks:
       - supermarket-network
+
+  # ==========================================================
+  # Optional: Ollama local SLM (qwen2.5:0.5b) for natural query router
+  # ==========================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: supermarket-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    networks:
+      - supermarket-network
+
+volumes:
+  qdrant_storage:
+  ollama_storage:
 
 networks:
   # Mạng nội bộ riêng của phân hệ Supermarket
