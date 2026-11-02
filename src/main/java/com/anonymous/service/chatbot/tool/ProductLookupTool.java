@@ -37,7 +37,7 @@ public class ProductLookupTool implements ChatTool {
 
     @Override
     public String description() {
-        return "Giá bán, mã vạch và số lượng còn của một sản phẩm ở từng kho (tìm theo tên, mã hoặc mã vạch)";
+        return "Tổng số lượng sản phẩm, danh sách mặt hàng đang kinh doanh, hoặc tra giá bán, mã vạch và tồn kho của sản phẩm cụ thể";
     }
 
     @Override
@@ -47,15 +47,65 @@ public class ProductLookupTool implements ChatTool {
 
     @Override
     public List<String> examples() {
-        return List.of("Giá sữa chua Vinamilk bao nhiêu?", "Sản phẩm SP00001 còn bao nhiêu hàng?");
+        return List.of("Hiện tại có bao nhiêu sản phẩm?", "Giá sữa chua Vinamilk bao nhiêu?", "Sản phẩm SP00001 còn bao nhiêu hàng?");
     }
 
     @Override
     @PreAuthorize(Permissions.AUTHENTICATED)
     public ToolAnswer execute(ToolArgs args) {
         if (args.keyword() == null || args.keyword().isBlank()) {
-            return ToolAnswer.notMatched("Bạn muốn tra sản phẩm nào? Hãy nhập tên, mã sản phẩm (VD `SP00001`) hoặc mã vạch.",
-                    "/home/product", "Mở Sản phẩm");
+            List<ProductResponse> allProducts = productService.getAll();
+            if (allProducts.isEmpty()) {
+                return ToolAnswer.of("Hiện tại hệ thống chưa có sản phẩm nào được khai báo.", "/home/product", "Mở Sản phẩm");
+            }
+            long categoryCount = allProducts.stream()
+                    .map(p -> p.getProductCategory() != null ? p.getProductCategory().getName() : null)
+                    .filter(s -> s != null && !s.isBlank())
+                    .distinct()
+                    .count();
+            long brandCount = allProducts.stream()
+                    .map(p -> p.getBrand() != null ? p.getBrand().getName() : null)
+                    .filter(s -> s != null && !s.isBlank())
+                    .distinct()
+                    .count();
+
+            StringBuilder md = new StringBuilder();
+            md.append("**Thống kê danh mục sản phẩm hiện có**\n\n");
+            md.append(kpiCards(List.of(
+                    new KpiCard("Tổng số sản phẩm", number(allProducts.size()) + " SP", "Đang kinh doanh trên hệ thống", "primary"),
+                    new KpiCard("Nhóm hàng", number(categoryCount) + " nhóm", "Phân loại danh mục hàng hóa", "success"),
+                    new KpiCard("Thương hiệu", number(brandCount) + " hãng", "Nhà sản xuất / nhãn hàng", "primary")
+            ))).append("\n");
+
+            md.append("Hiện tại hệ thống đang kinh doanh tổng cộng **").append(number(allProducts.size()))
+                    .append(" sản phẩm (mặt hàng)** thuộc **").append(number(categoryCount)).append(" nhóm hàng**.\n\n");
+
+            List<String> headers = List.of("#", "Sản phẩm", "Mã SP", "Mã vạch", "Nhóm hàng", "Đơn vị", "Giá bán");
+            int[] idx = {0};
+            List<List<String>> allRows = allProducts.stream()
+                    .map(p -> List.of(
+                            String.valueOf(++idx[0]),
+                            cell(p.getName()),
+                            cell(p.getCode()),
+                            cell(p.getBarcode()),
+                            p.getProductCategory() != null ? cell(p.getProductCategory().getName()) : "—",
+                            p.getUnit() != null ? cell(p.getUnit().getName()) : "—",
+                            money(p.getSalePrice())
+                    ))
+                    .toList();
+
+            int previewSize = 10;
+            if (allRows.size() <= previewSize) {
+                md.append(table(headers, allRows));
+            } else {
+                md.append(table(headers, allRows.subList(0, previewSize)));
+                md.append("\n").append(collapsible(
+                        "Nhấn để xem toàn bộ danh sách " + allRows.size() + " sản phẩm (mở rộng)",
+                        table(headers, allRows)
+                ));
+            }
+            md.append(downloadCsvLink("Tải danh sách toàn bộ sản phẩm (.CSV)", "danh-sach-san-pham.csv", headers, allRows));
+            return ToolAnswer.of(md.toString(), "/home/product", "Đến trang Quản lý Sản phẩm");
         }
         List<ProductResponse> products = productService.search(args.keyword().trim(), PageRequest.of(0, MAX_PRODUCTS)).getItems();
         if (products.isEmpty()) {

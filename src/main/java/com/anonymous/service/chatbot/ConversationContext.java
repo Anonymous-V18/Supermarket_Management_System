@@ -2,13 +2,18 @@ package com.anonymous.service.chatbot;
 
 import lombok.Builder;
 
+import java.time.LocalDate;
+
 @Builder(toBuilder = true)
 public record ConversationContext(
         String previousIntent,
         String lastPersonName,
         String lastProductKeyword,
+        String lastDocumentCode,
         String lastWarehouseId,
-        String lastWarehouseName
+        String lastWarehouseName,
+        LocalDate lastFrom,
+        LocalDate lastTo
 ) {
 
     public static ConversationContext empty() {

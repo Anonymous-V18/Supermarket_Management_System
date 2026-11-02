@@ -84,6 +84,21 @@ public final class ChatFormat {
     public record ChartBar(String label, long rawValue, String displayValue, int percent) {
     }
 
+    public record KpiCard(String label, String value, String subtext, String tone) {
+    }
+
+    public static String kpiCards(List<KpiCard> cards) {
+        StringBuilder sb = new StringBuilder("\n:::kpi\n");
+        for (KpiCard card : cards) {
+            sb.append(cell(card.label())).append(" | ")
+                    .append(cell(card.value())).append(" | ")
+                    .append(cell(card.subtext() != null ? card.subtext() : "")).append(" | ")
+                    .append(card.tone() != null ? card.tone() : "primary").append('\n');
+        }
+        sb.append(":::\n");
+        return sb.toString();
+    }
+
     public static String chart(String title, List<ChartBar> bars) {
         StringBuilder sb = new StringBuilder("\n:::chart ").append(title.replace("\n", " ").trim()).append("\n");
         for (ChartBar bar : bars) {
@@ -103,7 +118,9 @@ public final class ChatFormat {
         for (List<String> row : rows) {
             sb.append(row.stream().map(ChatFormat::escapeCsv).collect(Collectors.joining(","))).append("\r\n");
         }
-        String encoded = URLEncoder.encode(sb.toString(), StandardCharsets.UTF_8).replace("+", "%20");
+        String encoded = URLEncoder.encode(sb.toString(), StandardCharsets.UTF_8)
+                .replace("+", "%20")
+                .replace("*", "%2A");
         String uri = "data:text/csv;charset=utf-8," + encoded;
         return "\n[" + cleanLabel + "](" + uri + "#" + fileName + ")\n";
     }

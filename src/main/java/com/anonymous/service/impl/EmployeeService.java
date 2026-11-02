@@ -9,7 +9,6 @@ import com.anonymous.dto.response.PageResponse;
 import com.anonymous.entity.Address;
 import com.anonymous.entity.Employee;
 import com.anonymous.entity.Position;
-import com.anonymous.entity.Role;
 import com.anonymous.entity.User;
 import com.anonymous.exception.AppException;
 import com.anonymous.exception.ErrorCode;
@@ -23,8 +22,7 @@ import com.anonymous.service.ICodeGeneratorService;
 import com.anonymous.service.IEmployeeService;
 import com.anonymous.service.IUserService;
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
+import jakarta.persistence.criteria.JoinType;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -118,17 +116,19 @@ public class EmployeeService implements IEmployeeService {
 
     @Override
     public List<EmployeeResponse> getAll() {
-        String currentUsername = authService.getClaimsToken().get("username").toString();
+        Object usernameClaim = authService.getClaimsToken().get("username");
+        String currentUsername = usernameClaim != null ? usernameClaim.toString() : null;
         return employeeRepository.findAllByIsDeletedFalse().stream()
                 .filter(employee -> {
+                    if (currentUsername == null) {
+                        return true;
+                    }
                     User user = employee.getUser();
                     if (user == null) {
-                        return false;
+                        return true;
                     }
-                    boolean isAdmin = user.getRoles() != null && user.getRoles().stream()
-                            .anyMatch(role -> "ADMIN".equalsIgnoreCase(role.getCode()) || "ADMIN".equalsIgnoreCase(role.getName()));
                     boolean isCurrentUser = user.getUsername() != null && user.getUsername().equals(currentUsername);
-                    return !isAdmin && !isCurrentUser;
+                    return !isCurrentUser;
                 })
                 .map(employeeMapper::toDTO)
                 .toList();
@@ -158,18 +158,18 @@ public class EmployeeService implements IEmployeeService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<EmployeeResponse> search(String keyword, Pageable pageable) {
-        String currentUsername = authService.getClaimsToken().get("username").toString();
-        Specification<Employee> manageable = (root, query, cb) -> {
-            Join<Employee, User> user = root.join("user");
-            Subquery<String> admins = query.subquery(String.class);
-            Root<User> adminUser = admins.from(User.class);
-            Join<User, Role> role = adminUser.join("roles");
-            admins.select(adminUser.get("id")).where(cb.equal(role.get("code"), "ADMIN"));
-            return cb.and(cb.notEqual(user.get("username"), currentUsername), cb.not(user.get("id").in(admins)));
+        Object usernameClaim = authService.getClaimsToken().get("username");
+        String currentUsername = usernameClaim != null ? usernameClaim.toString() : null;
+        Specification<Employee> excludeSelf = (root, query, cb) -> {
+            if (currentUsername == null) {
+                return cb.conjunction();
+            }
+            Join<Employee, User> user = root.join("user", JoinType.LEFT);
+            return cb.or(cb.isNull(user.get("username")), cb.notEqual(user.get("username"), currentUsername));
         };
         return PageResponse.of(employeeRepository.findAll(SearchSpecs.allOf(
                 SearchSpecs.notDeleted(),
-                manageable,
+                excludeSelf,
                 SearchSpecs.keyword(keyword, "code", "name", "phoneNumber", "email")
         ), pageable), employeeMapper::toDTO);
     }

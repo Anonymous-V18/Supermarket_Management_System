@@ -2,30 +2,52 @@ package com.anonymous.service.chatbot;
 
 import com.anonymous.service.chatbot.KnowledgeRetriever.Passage;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 // Writes the answer to a knowledge-base question from the retrieved passages only.
-// extract() quotes the matching section / lines of the passages word for word.
+// When an AI model (Gemini / Groq / OpenRouter) is configured, synthesizes a natural answer with [1], [2] citations;
+// otherwise falls back to deterministic extract().
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AnswerComposer {
 
     public static final String NO_INFORMATION =
             "Mình chưa tìm thấy thông tin này trong tài liệu bạn được phép xem. Bạn thử hỏi cụ thể hơn, hoặc liên hệ quản lý để được hỗ trợ.";
 
+    private static final String RAG_SYSTEM_PROMPT = """
+            Bạn là Trợ lý AI nội bộ của Hệ thống Quản lý Siêu thị.
+            Nhiệm vụ: Dựa HOÀN TOÀN vào các đoạn tài liệu nội bộ được cung cấp bên dưới để trả lời câu hỏi của nhân viên một cách tự nhiên, rõ ràng, súc tích và chuyên nghiệp bằng tiếng Việt.
+            Quy tắc bắt buộc:
+            1. Chỉ sử dụng thông tin có trong các đoạn tài liệu được cung cấp. Không tự bịa thêm quy định không có trong tài liệu.
+            2. Luôn gắn trích dẫn nguồn dạng [1], [2] ở cuối câu hoặc đoạn tương ứng với số thứ tự tài liệu.
+            3. Trình bày đẹp mắt bằng Markdown (in đậm các ý chính, gạch đầu dòng hoặc bảng nếu phù hợp).
+            4. Nếu tài liệu hoàn toàn không liên quan đến câu hỏi, chỉ trả lời đúng cụm từ: NO_INFO
+            """;
+
     static final double MIN_TOPICAL_SHARE = 0.5;
     private static final int MAX_EXTRACT_SECTIONS = 2;
     private static final int MAX_EXTRACT_LINES = 10;
+
+    SlmQueryParser slmQueryParser;
+
+    @Autowired
+    public AnswerComposer(SlmQueryParser slmQueryParser) {
+        this.slmQueryParser = slmQueryParser;
+    }
+
+    public AnswerComposer() {
+        this(null);
+    }
 
     public interface Sink {
         void delta(String text);
@@ -45,9 +67,29 @@ public class AnswerComposer {
             return new Answer(NO_INFORMATION, false, false);
         }
         String extracted = extract(topic, passages);
-        String text = extracted != null ? extracted : NO_INFORMATION;
-        sink.delta(text);
-        return new Answer(text, false, extracted != null);
+        if (extracted == null) {
+            sink.delta(NO_INFORMATION);
+            return new Answer(NO_INFORMATION, false, false);
+        }
+
+        if (slmQueryParser != null && slmQueryParser.isEnabled()) {
+            StringBuilder contextPrompt = new StringBuilder("Câu hỏi: ").append(question).append("\n\nTài liệu tham khảo:\n");
+            for (int i = 0; i < Math.min(passages.size(), 4); i++) {
+                Passage p = passages.get(i);
+                String heading = p.chunk().getHeadingPath() != null ? p.chunk().getHeadingPath() : p.documentTitle();
+                contextPrompt.append("\n[").append(i + 1).append("] Tiêu đề: ").append(heading)
+                        .append("\nNội dung:\n").append(p.chunk().getContent()).append("\n");
+            }
+            Optional<String> aiReply = slmQueryParser.completeText(RAG_SYSTEM_PROMPT, contextPrompt.toString());
+            if (aiReply.isPresent() && !aiReply.get().contains("NO_INFO")) {
+                String text = aiReply.get();
+                sink.delta(text);
+                return new Answer(text, true, true);
+            }
+        }
+
+        sink.delta(extracted);
+        return new Answer(extracted, false, true);
     }
 
     // Answer: the passages' own lines, word for word, cut down to what the question is about.

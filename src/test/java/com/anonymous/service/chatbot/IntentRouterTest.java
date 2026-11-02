@@ -43,6 +43,7 @@ class IntentRouterTest {
     private static final Set<String> SALESMAN = Set.of("SALESMAN");
     private static final Set<String> ACCOUNTING = Set.of("ACCOUNTING_STAFF");
     private static final Set<String> STOREKEEPER = Set.of("STOREKEEPER");
+    private static final Set<String> ADMIN = Set.of("ADMIN");
 
     private final IntentRouter router;
 
@@ -63,6 +64,10 @@ class IntentRouterTest {
                 new StubTool("customer_lookup", Permissions.SALES_READ),
                 new StubTool("sales_return_search", Permissions.SALES_READ),
                 new StubTool("invoice_search", Permissions.SALES_READ),
+                new StubTool("stock_in_search", Permissions.STOCK_READ),
+                new StubTool("stock_out_search", Permissions.STOCK_READ),
+                new StubTool("stock_transfer_search", Permissions.STOCK_READ),
+                new StubTool("stock_take_search", Permissions.STOCK_READ),
                 new StubTool("supplier_lookup", Permissions.STOCK_READ),
                 new StubTool("employee_lookup", Permissions.ADMIN),
                 new StubTool("warehouse_lookup", Permissions.STOCK_READ),
@@ -415,6 +420,81 @@ class IntentRouterTest {
         assertThat(route2.kind()).isEqualTo(Kind.TOOL);
         assertThat(route2.tool().name()).isEqualTo("inventory");
         assertThat(route2.args().byWarehouse()).isTrue();
+    }
+
+    @Test
+    void employeeCodeAndMultiTurnContextFollowUpWorkAccurately() {
+        Route empRoute = route("Chi tiết NV5", ADMIN);
+        assertThat(empRoute.kind()).isEqualTo(Kind.TOOL);
+        assertThat(empRoute.tool().name()).isEqualTo("employee_lookup");
+        assertThat(empRoute.args().keyword()).isEqualTo("NV00005");
+
+        LocalDate oct22 = LocalDate.of(2026, 10, 22);
+        ConversationContext ctx = ConversationContext.builder()
+                .previousIntent("top_products")
+                .lastFrom(oct22)
+                .lastTo(oct22)
+                .lastDocumentCode("HD000024")
+                .build();
+
+        Route prodFollowUp = router.route("4 sản phẩm đó là gì?", ADMIN, ctx);
+        assertThat(prodFollowUp.kind()).isEqualTo(Kind.TOOL);
+        assertThat(prodFollowUp.tool().name()).isEqualTo("top_products");
+        assertThat(prodFollowUp.args().from()).isEqualTo(oct22);
+        assertThat(prodFollowUp.args().to()).isEqualTo(oct22);
+
+        Route docFollowUp = router.route("Chi tiết hóa đơn đó", ADMIN, ctx);
+        assertThat(docFollowUp.kind()).isEqualTo(Kind.TOOL);
+        assertThat(docFollowUp.tool().name()).isEqualTo("invoice_lookup");
+        assertThat(docFollowUp.args().keyword()).isEqualTo("HD000024");
+
+        Route revFollowUp = router.route("Còn doanh thu thì sao?", ADMIN, ctx);
+        assertThat(revFollowUp.kind()).isEqualTo(Kind.TOOL);
+        assertThat(revFollowUp.tool().name()).isEqualTo("revenue");
+        assertThat(revFollowUp.args().from()).isEqualTo(oct22);
+        assertThat(revFollowUp.args().to()).isEqualTo(oct22);
+
+        Route prodCount1 = route("hiện tại có bao nhiêu sản phẩm", ADMIN);
+        assertThat(prodCount1.kind()).isEqualTo(Kind.TOOL);
+        assertThat(prodCount1.tool().name()).isEqualTo("product_lookup");
+        assertThat(prodCount1.args().keyword()).isNull();
+
+        Route prodCount2 = route("số lượng sản phẩm", SALESMAN);
+        assertThat(prodCount2.kind()).isEqualTo(Kind.TOOL);
+        assertThat(prodCount2.tool().name()).isEqualTo("product_lookup");
+        assertThat(prodCount2.args().keyword()).isNull();
+
+        Route prodList = route("danh sách sản phẩm trong hệ thống", SALESMAN);
+        assertThat(prodList.kind()).isEqualTo(Kind.TOOL);
+        assertThat(prodList.tool().name()).isEqualTo("product_lookup");
+        assertThat(prodList.args().keyword()).isNull();
+
+        // Ensure standalone stock document queries are never hijacked by previous invoice_stats intent
+        ConversationContext invoiceCtx = ConversationContext.builder()
+                .previousIntent("invoice_stats")
+                .lastFrom(LocalDate.of(2026, 10, 1))
+                .lastTo(LocalDate.of(2026, 10, 31))
+                .build();
+
+        Route stockOutRoute = router.route("có tổng bao nhiêu phiếu xuất kho trong tháng 10", ADMIN, invoiceCtx);
+        assertThat(stockOutRoute.kind()).isEqualTo(Kind.TOOL);
+        assertThat(stockOutRoute.tool().name()).isEqualTo("stock_out_search");
+        assertThat(stockOutRoute.args().from()).isEqualTo(LocalDate.of(2026, 10, 1));
+        assertThat(stockOutRoute.args().to()).isEqualTo(LocalDate.of(2026, 10, 31));
+
+        Route stockInRoute = router.route("có tổng bao nhiêu phiếu nhập kho trong tháng 10", ADMIN, invoiceCtx);
+        assertThat(stockInRoute.kind()).isEqualTo(Kind.TOOL);
+        assertThat(stockInRoute.tool().name()).isEqualTo("stock_in_search");
+        assertThat(stockInRoute.args().from()).isEqualTo(LocalDate.of(2026, 10, 1));
+        assertThat(stockInRoute.args().to()).isEqualTo(LocalDate.of(2026, 10, 31));
+
+        Route transferRoute = router.route("có bao nhiêu phiếu chuyển kho trong tháng 10", STOREKEEPER, invoiceCtx);
+        assertThat(transferRoute.kind()).isEqualTo(Kind.TOOL);
+        assertThat(transferRoute.tool().name()).isEqualTo("stock_transfer_search");
+
+        Route takeRoute = router.route("có bao nhiêu phiếu kiểm kê trong tháng 10", STOREKEEPER, invoiceCtx);
+        assertThat(takeRoute.kind()).isEqualTo(Kind.TOOL);
+        assertThat(takeRoute.tool().name()).isEqualTo("stock_take_search");
     }
 
 }

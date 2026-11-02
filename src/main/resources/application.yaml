@@ -73,10 +73,12 @@ com:
         query-prefix: ${EMBEDDING_QUERY_PREFIX:}
         passage-prefix: ${EMBEDDING_PASSAGE_PREFIX:}
         min-score: ${EMBEDDING_MIN_SCORE:0.82}
-      # Optional local Small Language Model (SLM) for zero-hardcode query parsing
+      # Optional AI Model (Gemini / Groq / OpenRouter / Ollama) for natural language query parsing & RAG synthesis
       slm:
         enabled: ${SLM_ENABLED:false}
+        provider: ${LLM_PROVIDER:auto}
+        api-key: ${LLM_API_KEY:}
         url: ${SLM_URL:http://localhost:11434}
-        model: ${SLM_MODEL:qwen2.5:0.5b}
-        timeout-ms: ${SLM_TIMEOUT_MS:3000}
+        model: ${SLM_MODEL:gemini-3.5-flash-lite}
+        timeout-ms: ${SLM_TIMEOUT_MS:8000}
 

@@ -4,6 +4,7 @@ import com.anonymous.configuration.ChatbotProperties;
 import com.anonymous.service.chatbot.tool.ToolArgs;
 import com.anonymous.utils.VietnameseTextUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.annotation.PostConstruct;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
@@ -16,9 +17,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,10 +53,15 @@ public class SlmQueryParser {
             - "sales_by_employee": Doanh số bán hàng của từng nhân viên, nhân viên bán được bao nhiêu tiền (from, to, chart).
             - "inventory": Báo cáo tồn kho sản phẩm, số lượng tồn kho theo từng kho hoặc sản phẩm có tồn kho nhiều nhất/ít nhất, danh sách hàng sắp hết hàng (keyword, byWarehouse, lowStockOnly).
             - "expiring_lots": Hàng sắp hết hạn sử dụng, cận date, quá hạn (keyword, withinDays).
-            - "product_lookup": Tra cứu giá bán, thông tin sản phẩm cụ thể theo tên hoặc mã (keyword).
+            - "product_lookup": Tra cứu tổng số lượng sản phẩm, danh sách sản phẩm đang kinh doanh (keyword=null), hoặc tra giá bán, thông tin sản phẩm cụ thể theo tên/mã (keyword).
             - "invoice_lookup": Tra cứu chi tiết một mã hóa đơn cụ thể như HD000001 (keyword).
-            - "invoice_search": Tra cứu danh sách đơn hàng/hóa đơn theo ngày hoặc người (keyword, from, to).
-            - "invoice_stats": Thống kê/đếm số lượng hóa đơn theo ngày tháng (from, to).
+            - "invoice_search": Tra cứu danh sách đơn hàng/hóa đơn bán hàng theo ngày hoặc người (keyword, from, to).
+            - "invoice_stats": Thống kê/đếm số lượng hóa đơn bán hàng theo ngày tháng (from, to).
+            - "sales_return_search": Thống kê/danh sách phiếu trả hàng của khách theo ngày hoặc tên khách (keyword, from, to).
+            - "stock_in_search": Thống kê/đếm số lượng và danh sách phiếu nhập kho (PN) theo ngày/tháng, kho hoặc nhà cung cấp (keyword, from, to).
+            - "stock_out_search": Thống kê/đếm số lượng và danh sách phiếu xuất kho (PX) theo ngày/tháng, kho hoặc lý do (keyword, from, to).
+            - "stock_transfer_search": Thống kê/đếm số lượng và danh sách phiếu chuyển kho (CK) theo ngày/tháng hoặc kho (from, to).
+            - "stock_take_search": Thống kê/đếm số lượng và danh sách phiếu kiểm kê kho (KK) theo ngày/tháng hoặc kho (from, to).
             - "employee_lookup": Tra cứu danh sách/hồ sơ nhân viên (chức vụ, liên hệ, sđt) theo tên người (keyword).
             - "customer_lookup": Tra cứu khách hàng theo tên hoặc số điện thoại (keyword).
             - "supplier_lookup": Tra cứu nhà cung cấp, nhà phân phối theo tên (keyword).
@@ -69,10 +79,14 @@ public class SlmQueryParser {
             4. Nếu hỏi về kho có nhiều hàng hóa/sản phẩm/tồn kho nhất, DÙNG tool "inventory" với byWarehouse=true (KHÔNG DÙNG top_products vì top_products chỉ tính hàng BÁN ra).
             5. Nếu hỏi về hàng hết hạn / cận date, DÙNG tool "expiring_lots". Nếu hỏi hàng sắp hết trong kho, DÙNG tool "inventory" với lowStockOnly=true.
             6. Nếu hỏi về nhà cung cấp / nhà phân phối / NCC, DÙNG tool "supplier_lookup".
-            7. Nếu hỏi quy trình, hướng dẫn, làm thế nào, DÙNG tool "docs".
-            8. Nếu chào hỏi hoặc cảm ơn, DÙNG tool "smalltalk".
+            7. Nếu hỏi tổng số lượng sản phẩm, hiện tại có bao nhiêu sản phẩm, danh sách sản phẩm trong hệ thống, DÙNG tool "product_lookup" với keyword=null.
+            8. Nếu hỏi quy trình, hướng dẫn, làm thế nào, DÙNG tool "docs".
+            9. Nếu chào hỏi hoặc cảm ơn, DÙNG tool "smalltalk".
 
             Ví dụ:
+            User: Hiện tại có bao nhiêu sản phẩm
+            Output: {"tool": "product_lookup", "from": null, "to": null, "keyword": null, "byWarehouse": null, "chart": null, "lowStockOnly": null, "limit": null}
+
             User: Hiện tại ai đang đăng nhập vậy
             Output: {"tool": "current_user", "from": null, "to": null, "keyword": null, "byWarehouse": null, "chart": null, "lowStockOnly": null, "limit": null}
 
@@ -107,10 +121,19 @@ public class SlmQueryParser {
 
     private static final Pattern DATE_PATTERN = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}$|^\\d{1,2}[/-]\\d{1,2}(?:[/-]\\d{2,4})?$");
 
+    private static final Path SAVED_CONFIG_PATH = Path.of(".chatbot-ai-config.json");
+
+    private static final List<String> GEMINI_FREE_MODELS = List.of(
+            "gemini-3.5-flash-lite",
+            "gemini-3-flash-preview",
+            "gemini-3.5-flash",
+            "gemma-4-31b-it"
+    );
+
     ChatbotProperties chatbotProperties;
     ObjectMapper objectMapper;
     HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(2))
+            .connectTimeout(Duration.ofSeconds(4))
             .build();
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -126,63 +149,330 @@ public class SlmQueryParser {
     ) {
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SavedAiConfig(
+            Boolean enabled,
+            String provider,
+            String apiKey,
+            String model
+    ) {
+    }
+
+    public record AiConfigStatus(
+            boolean enabled,
+            String provider,
+            String model,
+            boolean hasApiKey,
+            String maskedApiKey
+    ) {
+    }
+
+    @PostConstruct
+    void loadSavedConfig() {
+        try {
+            if (Files.exists(SAVED_CONFIG_PATH)) {
+                String json = Files.readString(SAVED_CONFIG_PATH, StandardCharsets.UTF_8);
+                SavedAiConfig saved = objectMapper.readValue(json, SavedAiConfig.class);
+                ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+                if (slm != null && saved != null) {
+                    if (saved.enabled() != null) slm.setEnabled(saved.enabled());
+                    if (saved.provider() != null && !saved.provider().isBlank()) slm.setProvider(saved.provider());
+                    if (saved.apiKey() != null && !saved.apiKey().isBlank()) slm.setApiKey(saved.apiKey());
+                    if (saved.model() != null && !saved.model().isBlank()) slm.setModel(saved.model());
+                    log.info("Loaded Chatbot AI config: enabled={}, provider={}, model={}",
+                            slm.isEnabled(), resolvedProvider(), resolvedModel());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not read saved chatbot AI config: {}", e.getMessage());
+        }
+    }
+
+    public synchronized AiConfigStatus getConfigStatus() {
+        ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+        boolean enabled = slm != null && slm.isEnabled();
+        String key = slm != null && slm.getApiKey() != null ? slm.getApiKey().trim() : "";
+        boolean hasKey = !key.isEmpty();
+        String masked = hasKey
+                ? (key.length() > 8 ? key.substring(0, 4) + "••••••" + key.substring(key.length() - 4) : "••••••••")
+                : "";
+        return new AiConfigStatus(enabled, resolvedProvider(), resolvedModel(), hasKey, masked);
+    }
+
+    public synchronized AiConfigStatus updateConfig(Boolean enabled, String provider, String apiKey, String model) {
+        ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+        if (slm == null) {
+            slm = new ChatbotProperties.Slm();
+            chatbotProperties.setSlm(slm);
+        }
+        if (apiKey != null && !apiKey.isBlank() && !apiKey.contains("••")) {
+            String trimmedKey = apiKey.trim();
+            slm.setApiKey(trimmedKey);
+            if (provider == null || provider.isBlank() || "auto".equalsIgnoreCase(provider)) {
+                slm.setProvider(detectProviderFromKey(trimmedKey));
+            }
+        } else if (apiKey != null && apiKey.isBlank()) {
+            slm.setApiKey("");
+        }
+        if (provider != null && !provider.isBlank()) {
+            slm.setProvider(provider.trim().toLowerCase(Locale.ROOT));
+        }
+        if (model != null && !model.isBlank()) {
+            slm.setModel(model.trim());
+        } else {
+            slm.setModel(defaultModelFor(resolvedProvider()));
+        }
+        if (enabled != null) {
+            slm.setEnabled(enabled);
+        } else if (slm.getApiKey() != null && !slm.getApiKey().isBlank()) {
+            slm.setEnabled(true);
+        }
+
+        try {
+            SavedAiConfig toSave = new SavedAiConfig(slm.isEnabled(), slm.getProvider(), slm.getApiKey(), slm.getModel());
+            Files.writeString(SAVED_CONFIG_PATH, objectMapper.writeValueAsString(toSave), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.warn("Could not persist chatbot AI config: {}", e.getMessage());
+        }
+        return getConfigStatus();
+    }
+
+    public String resolvedProvider() {
+        ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+        if (slm == null) return "gemini";
+        String key = slm.getApiKey() != null ? slm.getApiKey().trim() : "";
+        String p = slm.getProvider() != null ? slm.getProvider().trim().toLowerCase(Locale.ROOT) : "auto";
+        if ("auto".equals(p) || p.isEmpty()) {
+            return detectProviderFromKey(key);
+        }
+        return p;
+    }
+
+    public String resolvedModel() {
+        ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+        String provider = resolvedProvider();
+        if (slm != null && slm.getModel() != null && !slm.getModel().isBlank()) {
+            String m = slm.getModel().trim();
+            // Auto-switch model if user switched provider or had an incompatible/retired model configured
+            if ("groq".equals(provider) && (m.startsWith("gemini") || m.startsWith("qwen") || m.contains(":"))) {
+                return defaultModelFor("groq");
+            }
+            if ("gemini".equals(provider) && (!m.startsWith("gemini") && !m.startsWith("gemma") || m.startsWith("gemini-2.5"))) {
+                return defaultModelFor("gemini");
+            }
+            if ("openrouter".equals(provider) && !m.contains("/")) {
+                return defaultModelFor("openrouter");
+            }
+            return m;
+        }
+        return defaultModelFor(provider);
+    }
+
+    private static String detectProviderFromKey(String key) {
+        if (key == null || key.isBlank()) return "gemini";
+        if (key.startsWith("AIza") || key.startsWith("AQ.")) return "gemini";
+        if (key.startsWith("gsk_")) return "groq";
+        if (key.startsWith("sk-or-")) return "openrouter";
+        return "gemini";
+    }
+
+    private static String defaultModelFor(String provider) {
+        return switch (provider) {
+            case "groq" -> "llama-3.3-70b-versatile";
+            case "openrouter" -> "meta-llama/llama-3.3-70b-instruct:free";
+            case "ollama" -> "qwen2.5:1.5b";
+            default -> "gemini-3.5-flash-lite";
+        };
+    }
+
     public boolean isEnabled() {
-        return chatbotProperties.getSlm() != null && chatbotProperties.getSlm().isEnabled();
+        ChatbotProperties.Slm slm = chatbotProperties.getSlm();
+        if (slm == null || !slm.isEnabled()) {
+            return false;
+        }
+        String provider = resolvedProvider();
+        if ("ollama".equals(provider)) {
+            return true;
+        }
+        return slm.getApiKey() != null && !slm.getApiKey().isBlank();
     }
 
     public Optional<SlmResult> parse(String question, LocalDate today) {
+        return parse(question, today, null);
+    }
+
+    public Optional<SlmResult> parse(String question, LocalDate today, ConversationContext context) {
         if (!isEnabled() || question == null || question.isBlank()) {
             return Optional.empty();
         }
 
         try {
-            String url = chatbotProperties.getSlm().getUrl();
-            if (url == null || url.isBlank()) {
-                url = "http://localhost:11434";
-            }
-            if (url.endsWith("/")) {
-                url = url.substring(0, url.length() - 1);
-            }
-
             String todayStr = today != null ? today.toString() : LocalDate.now().toString();
             String systemMsg = SYSTEM_PROMPT.formatted(todayStr, todayStr, todayStr, todayStr, todayStr);
-            Map<String, Object> payload = Map.of(
-                    "model", chatbotProperties.getSlm().getModel(),
-                    "messages", List.of(
-                            Map.of("role", "system", "content", systemMsg),
-                            Map.of("role", "user", "content", question)
-                    ),
-                    "stream", false,
-                    "format", "json",
-                    "options", Map.of("temperature", 0.0)
-            );
+            String plainQ = VietnameseTextUtil.stripDiacritics(VietnameseTextUtil.normalize(question));
+            boolean isExplicitFollowUp = plainQ.startsWith("con ") || plainQ.startsWith("the con ")
+                    || plainQ.contains(" do") || plainQ.contains(" ay") || plainQ.contains("thi sao");
+            if (context != null && isExplicitFollowUp) {
+                StringBuilder ctxNote = new StringBuilder("\nNgữ cảnh câu trước (CHỈ dùng khi câu hỏi hiện tại đang hỏi nối tiếp bằng từ 'đó', 'ấy', 'còn...'):");
+                if (context.previousIntent() != null) ctxNote.append("\n- Tool câu trước: ").append(context.previousIntent());
+                if (context.lastFrom() != null) ctxNote.append("\n- Khoảng ngày câu trước: ").append(context.lastFrom()).append(" đến ").append(context.lastTo() != null ? context.lastTo() : context.lastFrom());
+                if (context.lastDocumentCode() != null) ctxNote.append("\n- Mã chứng từ câu trước: ").append(context.lastDocumentCode());
+                if (context.lastPersonName() != null) ctxNote.append("\n- Người được nhắc câu trước: ").append(context.lastPersonName());
+                if (context.lastProductKeyword() != null) ctxNote.append("\n- Sản phẩm câu trước: ").append(context.lastProductKeyword());
+                systemMsg = systemMsg + ctxNote;
+            }
 
-            String requestBody = objectMapper.writeValueAsString(payload);
+            String rawContent = callChatModel(systemMsg, question, true);
+            if (rawContent == null || rawContent.isBlank()) {
+                return Optional.empty();
+            }
+
+            String cleanedJson = stripJsonFences(rawContent);
+            SlmResult result = objectMapper.readValue(cleanedJson, SlmResult.class);
+            return Optional.ofNullable(result);
+        } catch (Exception e) {
+            log.debug("AI query parsing bypassed or timed out: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    public Optional<String> completeText(String systemPrompt, String userPrompt) {
+        if (!isEnabled() || userPrompt == null || userPrompt.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            String reply = callChatModel(systemPrompt, userPrompt, false);
+            return (reply != null && !reply.isBlank()) ? Optional.of(reply.trim()) : Optional.empty();
+        } catch (Exception e) {
+            log.debug("AI text completion bypassed: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    public Optional<String> completeJson(String systemPrompt, String userPrompt) {
+        if (!isEnabled() || userPrompt == null || userPrompt.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            String raw = callChatModel(systemPrompt, userPrompt, true);
+            if (raw == null || raw.isBlank()) {
+                return Optional.empty();
+            }
+            return Optional.of(stripJsonFences(raw));
+        } catch (Exception e) {
+            log.debug("AI JSON completion bypassed: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private String callChatModel(String systemMsg, String userMsg, boolean jsonMode) throws Exception {
+        String provider = resolvedProvider();
+        String model = resolvedModel();
+        int timeoutMs = Math.max(chatbotProperties.getSlm().getTimeoutMs(), 3000);
+
+        if ("ollama".equals(provider)) {
+            String url = chatbotProperties.getSlm().getUrl();
+            if (url == null || url.isBlank()) url = "http://localhost:11434";
+            if (url.endsWith("/")) url = url.substring(0, url.length() - 1);
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("model", model);
+            payload.put("messages", List.of(
+                    Map.of("role", "system", "content", systemMsg),
+                    Map.of("role", "user", "content", userMsg)
+            ));
+            payload.put("stream", false);
+            if (jsonMode) {
+                payload.put("format", "json");
+            }
+            payload.put("options", Map.of("temperature", jsonMode ? 0.0 : 0.2));
+
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url + "/api/chat"))
                     .header("Content-Type", "application/json")
-                    .timeout(Duration.ofMillis(chatbotProperties.getSlm().getTimeoutMs()))
-                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .timeout(Duration.ofMillis(timeoutMs))
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                log.warn("SLM service returned status {}: {}", response.statusCode(), response.body());
-                return Optional.empty();
+                log.warn("Ollama returned status {}: {}", response.statusCode(), response.body());
+                return null;
             }
-
             JsonNode root = objectMapper.readTree(response.body());
-            JsonNode message = root.path("message").path("content");
-            if (message.isMissingNode() || message.asText().isBlank()) {
-                return Optional.empty();
-            }
-
-            SlmResult result = objectMapper.readValue(message.asText(), SlmResult.class);
-            return Optional.ofNullable(result);
-        } catch (Exception e) {
-            log.debug("Local SLM query parsing bypassed or timed out: {}", e.getMessage());
-            return Optional.empty();
+            return root.path("message").path("content").asText(null);
         }
+
+        // Cloud OpenAI-compatible providers: Gemini, Groq, OpenRouter
+        String endpoint = switch (provider) {
+            case "groq" -> "https://api.groq.com/openai/v1/chat/completions";
+            case "openrouter" -> "https://openrouter.ai/api/v1/chat/completions";
+            default -> "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+        };
+        String apiKey = chatbotProperties.getSlm().getApiKey() != null ? chatbotProperties.getSlm().getApiKey().trim() : "";
+
+        HttpResponse<String> response = sendOpenAiRequest(endpoint, apiKey, model, systemMsg, userMsg, jsonMode, provider, timeoutMs);
+        if (response.statusCode() != 200 && "gemini".equals(provider)) {
+            for (String fallbackModel : GEMINI_FREE_MODELS) {
+                if (fallbackModel.equals(model)) {
+                    continue;
+                }
+                log.info("Rotating Gemini free model to {} after status {} on {}", fallbackModel, response.statusCode(), model);
+                response = sendOpenAiRequest(endpoint, apiKey, fallbackModel, systemMsg, userMsg, jsonMode, provider, timeoutMs);
+                if (response.statusCode() == 200) {
+                    break;
+                }
+            }
+        }
+        if (response.statusCode() != 200) {
+            log.warn("AI provider {} returned status {}: {}", provider, response.statusCode(), response.body());
+            return null;
+        }
+        JsonNode root = objectMapper.readTree(response.body());
+        JsonNode choices = root.path("choices");
+        if (choices.isArray() && !choices.isEmpty()) {
+            return choices.get(0).path("message").path("content").asText(null);
+        }
+        return null;
+    }
+
+    private HttpResponse<String> sendOpenAiRequest(String endpoint, String apiKey, String model,
+                                                   String systemMsg, String userMsg, boolean jsonMode,
+                                                   String provider, int timeoutMs) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("model", model);
+        payload.put("messages", List.of(
+                Map.of("role", "system", "content", systemMsg),
+                Map.of("role", "user", "content", userMsg)
+        ));
+        payload.put("temperature", jsonMode ? 0.0 : 0.2);
+        if (jsonMode && !"openrouter".equals(provider)) {
+            payload.put("response_format", Map.of("type", "json_object"));
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .timeout(Duration.ofMillis(timeoutMs))
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                .build();
+
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String stripJsonFences(String raw) {
+        String s = raw.trim();
+        if (s.startsWith("```")) {
+            int firstNewline = s.indexOf('\n');
+            if (firstNewline > 0) {
+                s = s.substring(firstNewline + 1);
+            }
+            if (s.endsWith("```")) {
+                s = s.substring(0, s.length() - 3);
+            }
+        }
+        return s.trim();
     }
 
     public ToolArgs toToolArgs(SlmResult result) {

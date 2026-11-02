@@ -66,8 +66,8 @@ public final class PartnerTools {
         @PreAuthorize(Permissions.STOCK_READ)
         public ToolAnswer execute(ToolArgs args) {
             String keyword = args.keyword() == null ? "" : args.keyword().trim();
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
-            PageResponse<SupplierResponse> page = supplierService.search(keyword, PageUtil.newestFirst(0, limit));
+            int limit = args.limit() == null ? 1000 : Math.clamp(args.limit(), 5, 1000);
+            PageResponse<SupplierResponse> page = supplierService.search(keyword, PageUtil.newestFirstUnbounded(limit));
             List<SupplierResponse> suppliers = page.getItems();
             if (suppliers.isEmpty()) {
                 String msg = keyword.isBlank()

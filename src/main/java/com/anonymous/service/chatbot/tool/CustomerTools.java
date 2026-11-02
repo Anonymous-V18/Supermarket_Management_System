@@ -57,7 +57,7 @@ public final class CustomerTools {
 
         @Override
         public List<String> examples() {
-            return List.of("Có khách hàng tên Đặng Thanh Mai không?", "Tìm khách hàng 0822000082", "Thông tin khách hàng Mai");
+            return List.of("Danh sách khách hàng hiện có", "Khách hàng có điểm tích lũy cao nhất");
         }
 
         @Override
@@ -65,8 +65,8 @@ public final class CustomerTools {
         public ToolAnswer execute(ToolArgs args) {
             String rawKw = args.keyword();
             String keyword = (rawKw == null || rawKw.isBlank() || "null".equalsIgnoreCase(rawKw.trim())) ? "" : rawKw.trim();
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
-            PageResponse<CustomerResponse> page = customerService.search(keyword, PageUtil.newestFirst(0, limit));
+            int limit = args.limit() == null ? 1000 : Math.clamp(args.limit(), 5, 1000);
+            PageResponse<CustomerResponse> page = customerService.search(keyword, PageUtil.newestFirstUnbounded(limit));
             List<CustomerResponse> customers = page.getItems();
             if (customers.isEmpty()) {
                 String msg = keyword.isBlank()
@@ -130,7 +130,7 @@ public final class CustomerTools {
 
         @Override
         public List<String> examples() {
-            return List.of("Có ai tên Mai từng trả hàng không?", "Tìm phiếu trả hàng của khách hàng Đặng Thanh Mai", "Danh sách phiếu trả hàng gần đây");
+            return List.of("Danh sách phiếu trả hàng gần đây", "Thống kê phiếu trả hàng tháng này");
         }
 
         @Override
@@ -138,21 +138,25 @@ public final class CustomerTools {
         public ToolAnswer execute(ToolArgs args) {
             String rawKw = args.keyword();
             String keyword = (rawKw == null || rawKw.isBlank() || "null".equalsIgnoreCase(rawKw.trim())) ? "" : rawKw.trim();
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
-            PageResponse<SalesReturnResponse> page = salesReturnService.search(keyword, null, PageUtil.newestFirst(0, limit));
-            List<SalesReturnResponse> items = page.getItems();
+            int limit = args.limit() == null ? 1000 : Math.clamp(args.limit(), 5, 1000);
+            PageResponse<SalesReturnResponse> page = salesReturnService.search(keyword, null, PageUtil.newestFirstUnbounded(limit));
+            List<SalesReturnResponse> items = page.getItems().stream()
+                    .filter(r -> DocumentLookupTools.inDateRange(r.getReturnDate(), r.getCreatedDate(), args.from(), args.to()))
+                    .filter(r -> args.warehouseId() == null || (r.getWarehouse() != null && args.warehouseId().equals(r.getWarehouse().getId())))
+                    .toList();
+            String period = DocumentLookupTools.periodText(args);
             if (items.isEmpty()) {
                 String msg = keyword.isBlank()
-                        ? "Hiện chưa có phiếu trả hàng nào trong hệ thống."
-                        : "Không tìm thấy phiếu trả hàng nào liên quan đến **" + keyword + "**.";
+                        ? "Không có phiếu trả hàng nào phát sinh" + period + "."
+                        : "Không tìm thấy phiếu trả hàng nào liên quan đến **" + keyword + "**" + period + ".";
                 return ToolAnswer.of(msg, "/home/sales-return", "Đến trang Quản lý Trả hàng");
             }
 
             StringBuilder md = new StringBuilder();
             if (!keyword.isBlank()) {
-                md.append("Tìm thấy **").append(page.getTotalItems()).append("** phiếu trả hàng liên quan đến **").append(keyword).append("**:\n\n");
+                md.append("Tìm thấy **").append(items.size()).append("** phiếu trả hàng liên quan đến **").append(keyword).append("**").append(period).append(":\n\n");
             } else {
-                md.append("Danh sách phiếu trả hàng (tổng cộng **").append(page.getTotalItems()).append("** phiếu):\n\n");
+                md.append("Danh sách phiếu trả hàng").append(period).append(" (tổng cộng **").append(items.size()).append("** phiếu):\n\n");
             }
 
             List<String> headers = List.of("Mã phiếu", "Khách hàng", "Hóa đơn gốc", "Tiền hoàn", "Lý do", "Thời gian");
@@ -170,12 +174,12 @@ public final class CustomerTools {
                 ));
             }
 
-            if (page.getTotalItems() <= 5) {
+            if (items.size() <= 5) {
                 md.append(table(headers, allRows));
             } else {
                 List<List<String>> topRows = allRows.subList(0, Math.min(5, allRows.size()));
                 md.append(table(headers, topRows));
-                md.append("\n").append(collapsible("Nhấn để xem toàn bộ danh sách " + page.getTotalItems() + " phiếu trả hàng (mở rộng)", table(headers, allRows)));
+                md.append("\n").append(collapsible("Nhấn để xem toàn bộ danh sách " + items.size() + " phiếu trả hàng (mở rộng)", table(headers, allRows)));
                 md.append(downloadCsvLink("Tải danh sách phiếu trả hàng (.CSV)", "danh-sach-tra-hang.csv", headers, allRows));
             }
             return ToolAnswer.of(md.toString(), "/home/sales-return", "Đến trang Quản lý Trả hàng");
@@ -206,7 +210,7 @@ public final class CustomerTools {
 
         @Override
         public List<String> examples() {
-            return List.of("Hóa đơn của khách hàng Mai", "Tìm hóa đơn của khách hàng Đặng Thanh Mai");
+            return List.of("Danh sách hóa đơn hôm nay", "Tra cứu hóa đơn theo khách hàng");
         }
 
         @Override
@@ -214,8 +218,8 @@ public final class CustomerTools {
         public ToolAnswer execute(ToolArgs args) {
             String rawKw = args.keyword();
             String keyword = (rawKw == null || rawKw.isBlank() || "null".equalsIgnoreCase(rawKw.trim())) ? "" : rawKw.trim();
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
-            PageResponse<InvoiceResponse> page = invoiceService.search(keyword, args.from(), args.to(), null, PageUtil.newestFirst(0, limit));
+            int limit = args.limit() == null ? 1000 : Math.clamp(args.limit(), 5, 1000);
+            PageResponse<InvoiceResponse> page = invoiceService.search(keyword, args.from(), args.to(), null, PageUtil.newestFirstUnbounded(limit));
             List<InvoiceResponse> items = page.getItems();
 
             String periodText = (args.from() != null && args.to() != null)

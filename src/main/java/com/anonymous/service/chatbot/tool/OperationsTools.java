@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,9 +64,10 @@ public final class OperationsTools {
         @PreAuthorize(Permissions.ADMIN)
         public ToolAnswer execute(ToolArgs args) {
             String keyword = args.keyword() == null ? "" : args.keyword().trim();
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
-            PageResponse<EmployeeResponse> page = employeeService.search(keyword, PageUtil.newestFirst(0, limit));
-            List<EmployeeResponse> employees = page.getItems();
+            int limit = args.limit() == null ? 1000 : Math.clamp(args.limit(), 5, 1000);
+            PageResponse<EmployeeResponse> page = employeeService.search(keyword, PageUtil.newestFirstUnbounded(limit));
+            List<EmployeeResponse> employees = new ArrayList<>(page.getItems());
+            employees.sort(Comparator.comparing(e -> e.getCode() != null ? e.getCode() : ""));
             if (employees.isEmpty()) {
                 String msg = keyword.isBlank()
                         ? "Không tìm thấy nhân viên nào trong hệ thống."

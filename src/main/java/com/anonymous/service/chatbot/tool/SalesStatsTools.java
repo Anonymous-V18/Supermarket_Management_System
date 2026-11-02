@@ -132,7 +132,7 @@ public final class SalesStatsTools {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add)) + "**"));
                 md.append(table(List.of("Trạng thái", "Số hóa đơn", "Tổng tiền trên hóa đơn"), table));
 
-                List<InvoiceResponse> invoices = invoiceService.findByDateRange(range[0], range[1], args.warehouseId(), 50);
+                List<InvoiceResponse> invoices = invoiceService.findByDateRange(range[0], range[1], args.warehouseId(), 1000);
                 if (!invoices.isEmpty()) {
                     md.append("\n**Danh sách hóa đơn:**\n\n");
                     List<String> invHeaders = List.of("Mã HĐ", "Khách hàng", "Tổng tiền", "Trạng thái", "Thanh toán", "Thời gian");
@@ -205,19 +205,24 @@ public final class SalesStatsTools {
             Set<String> roles = currentRoles();
             LocalDate[] range = dayRangeOf(args);
             List<List<String>> rows = new ArrayList<>();
+            List<KpiCard> kpis = new ArrayList<>();
             String link = null;
             String label = null;
             if (ToolAccess.allows(Permissions.SALES_READ, roles)) {
                 List<InvoiceStatusCountResponse> invoices = invoiceService.countByStatus(range[0], range[1], args.warehouseId());
                 long all = countOf(invoices, true);
                 rows.add(List.of("Hóa đơn đã lập", number(all) + (all > 0 ? " (" + breakdown(invoices) + ")" : "")));
+                kpis.add(new KpiCard("Hóa đơn đã lập", number(all) + " HĐ", all > 0 ? breakdown(invoices) : "Chưa phát sinh", "primary"));
                 link = "/home/invoice";
                 label = "Mở Hóa đơn";
             }
             if (ToolAccess.allows(Permissions.REPORT, roles)) {
                 List<RevenueByDayResponse> days = reportService.revenueByDay(range[0], range[1], args.warehouseId());
-                rows.add(List.of("Doanh thu thuần (hóa đơn hoàn thành trừ trả hàng)", money(sum(days, true))));
-                rows.add(List.of("Lợi nhuận gộp", money(sum(days, false))));
+                BigDecimal netRev = sum(days, true);
+                BigDecimal profit = sum(days, false);
+                rows.add(List.of("Doanh thu thuần (hóa đơn hoàn thành trừ trả hàng)", money(netRev)));
+                rows.add(List.of("Lợi nhuận gộp", money(profit)));
+                kpis.add(new KpiCard("Doanh thu thuần", money(netRev), "Lợi nhuận gộp: " + money(profit), "success"));
                 link = "/home/report";
                 label = "Mở Báo cáo";
             }
@@ -228,6 +233,9 @@ public final class SalesStatsTools {
                 rows.add(List.of("Mặt hàng dưới mức tồn tối thiểu (hiện tại)", number(lowStock)));
                 rows.add(List.of("Lô hết hạn trong " + EXPIRY_DAYS + " ngày tới (hiện tại)", number(lots.size())
                         + (expired > 0 ? " (gồm " + number(expired) + " lô đã hết hạn)" : "")));
+                kpis.add(new KpiCard("Cảnh báo tồn kho", number(lowStock) + " mặt hàng thấp",
+                        number(lots.size()) + " lô cận/quá hạn (" + EXPIRY_DAYS + " ngày)",
+                        (lowStock > 0 || expired > 0) ? "warning" : "primary"));
                 if (link == null) {
                     link = "/home/report";
                     label = "Mở Báo cáo tồn kho";
@@ -238,7 +246,7 @@ public final class SalesStatsTools {
                 return ToolAnswer.of(title + "Vai trò của bạn chưa được xem số liệu tổng hợp nào. Bạn có thể hỏi về sản phẩm, "
                         + "giá bán hoặc số liệu ca làm việc của mình.", null, null);
             }
-            String md = title + table(List.of("Chỉ tiêu", "Giá trị"), rows) + futureNote(range)
+            String md = title + kpiCards(kpis) + "\n" + table(List.of("Chỉ tiêu", "Giá trị"), rows) + futureNote(range)
                     + "\n_Hỏi chi tiết hơn, ví dụ: \"doanh thu tuần này\", \"hàng sắp hết hạn trong 7 ngày\"._";
             return ToolAnswer.of(md, link, label);
         }

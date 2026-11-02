@@ -56,15 +56,17 @@ public class ChatbotProperties {
         double minScore = 0.82;
     }
 
-    // Optional local Small Language Model (SLM) for zero-hardcode natural language query parsing / function calling
+    // Optional local or cloud AI Model (Gemini, Groq, OpenRouter, Ollama) for natural language query parsing & synthesis
     @Getter
     @Setter
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class Slm {
         boolean enabled = false;
+        String provider = "auto";
+        String apiKey = "";
         String url = "http://localhost:11434";
-        String model = "qwen2.5:0.5b";
-        int timeoutMs = 3000;
+        String model = "gemini-2.5-flash";
+        int timeoutMs = 8000;
     }
 
 }

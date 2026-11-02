@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -46,6 +47,40 @@ public final class ReportTools {
 
     private static BigDecimal sum(List<RevenueByDayResponse> days, Function<RevenueByDayResponse, BigDecimal> field) {
         return days.stream().map(field).map(value -> value == null ? BigDecimal.ZERO : value).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private static String deltaMoneyText(BigDecimal current, BigDecimal previous) {
+        if (previous == null || previous.compareTo(BigDecimal.ZERO) <= 0) {
+            return current.compareTo(BigDecimal.ZERO) > 0 ? "▲ Phát sinh mới" : "Không đổi so với kỳ trước";
+        }
+        BigDecimal diff = current.subtract(previous);
+        BigDecimal pct = diff.multiply(BigDecimal.valueOf(100)).divide(previous, 1, RoundingMode.HALF_UP);
+        if (pct.compareTo(BigDecimal.ZERO) > 0) {
+            return "▲ +" + pct + "% so với kỳ trước";
+        } else if (pct.compareTo(BigDecimal.ZERO) < 0) {
+            return "▼ " + pct + "% so với kỳ trước";
+        }
+        return "Không đổi so với kỳ trước";
+    }
+
+    private static String deltaCountText(long current, long previous) {
+        if (previous <= 0) {
+            return current > 0 ? "▲ +" + number(current) + " đơn so với kỳ trước" : "Chưa phát sinh đơn";
+        }
+        long diff = current - previous;
+        if (diff > 0) {
+            return "▲ +" + number(diff) + " đơn so với kỳ trước";
+        } else if (diff < 0) {
+            return "▼ " + number(diff) + " đơn so với kỳ trước";
+        }
+        return "Bằng kỳ trước (" + number(previous) + " HĐ)";
+    }
+
+    private static String deltaTone(BigDecimal current, BigDecimal previous) {
+        if (previous == null || previous.compareTo(BigDecimal.ZERO) <= 0) {
+            return current.compareTo(BigDecimal.ZERO) > 0 ? "success" : "primary";
+        }
+        return current.compareTo(previous) >= 0 ? "success" : "warning";
     }
 
     @Component
@@ -126,15 +161,41 @@ public final class ReportTools {
 
             List<RevenueByDayResponse> days = reportService.revenueByDay(range[0], range[1], args.warehouseId());
             long invoices = days.stream().mapToLong(RevenueByDayResponse::getInvoiceCount).sum();
+            BigDecimal grossRev = sum(days, RevenueByDayResponse::getRevenue);
+            BigDecimal refunds = sum(days, RevenueByDayResponse::getRefunds);
+            BigDecimal netRev = sum(days, RevenueByDayResponse::getNetRevenue);
+            BigDecimal cost = sum(days, RevenueByDayResponse::getCost);
+            BigDecimal profit = sum(days, RevenueByDayResponse::getGrossProfit);
+
+            // Period-over-period comparison with preceding window of equal length
+            long spanDays = Math.max(1, ChronoUnit.DAYS.between(range[0], range[1]) + 1);
+            LocalDate prevFrom = range[0].minusDays(spanDays);
+            LocalDate prevTo = range[0].minusDays(1);
+            List<RevenueByDayResponse> prevDays = reportService.revenueByDay(prevFrom, prevTo, args.warehouseId());
+            BigDecimal prevNetRev = prevDays != null ? sum(prevDays, RevenueByDayResponse::getNetRevenue) : BigDecimal.ZERO;
+            BigDecimal prevProfit = prevDays != null ? sum(prevDays, RevenueByDayResponse::getGrossProfit) : BigDecimal.ZERO;
+            long prevInvoices = prevDays != null ? prevDays.stream().mapToLong(RevenueByDayResponse::getInvoiceCount).sum() : 0;
+
+            BigDecimal marginPct = netRev.compareTo(BigDecimal.ZERO) > 0
+                    ? profit.multiply(BigDecimal.valueOf(100)).divide(netRev, 1, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+
             StringBuilder md = new StringBuilder();
             md.append("**Doanh thu ").append(range(range[0], range[1])).append("** (").append(scopeOf(args)).append(")\n\n");
+
+            md.append(kpiCards(List.of(
+                    new KpiCard("Doanh thu thuần", money(netRev), deltaMoneyText(netRev, prevNetRev), deltaTone(netRev, prevNetRev)),
+                    new KpiCard("Lợi nhuận gộp", money(profit), "Biên LN: " + marginPct + "% · " + deltaMoneyText(profit, prevProfit), deltaTone(profit, prevProfit)),
+                    new KpiCard("Hóa đơn hoàn thành", number(invoices) + " HĐ", deltaCountText(invoices, prevInvoices), invoices >= prevInvoices ? "primary" : "warning")
+            ))).append("\n");
+
             md.append(table(List.of("Chỉ tiêu", "Giá trị"), List.of(
                     List.of("Số hóa đơn hoàn thành", number(invoices)),
-                    List.of("Doanh thu", money(sum(days, RevenueByDayResponse::getRevenue))),
-                    List.of("Hoàn trả", money(sum(days, RevenueByDayResponse::getRefunds))),
-                    List.of("Doanh thu thuần", money(sum(days, RevenueByDayResponse::getNetRevenue))),
-                    List.of("Giá vốn", money(sum(days, RevenueByDayResponse::getCost))),
-                    List.of("Lợi nhuận gộp", money(sum(days, RevenueByDayResponse::getGrossProfit))))));
+                    List.of("Doanh thu", money(grossRev)),
+                    List.of("Hoàn trả", money(refunds)),
+                    List.of("Doanh thu thuần", money(netRev)),
+                    List.of("Giá vốn", money(cost)),
+                    List.of("Lợi nhuận gộp", money(profit)))));
 
             List<RevenueByDayResponse> activeDays = days.stream()
                     .filter(day -> day.getInvoiceCount() > 0 || (day.getRefunds() != null && day.getRefunds().signum() != 0))
@@ -216,7 +277,7 @@ public final class ReportTools {
         @PreAuthorize(Permissions.REPORT)
         public ToolAnswer execute(ToolArgs args) {
             LocalDate[] range = rangeOf(args);
-            int limit = args.limit() == null ? 50 : Math.clamp(args.limit(), 5, 100);
+            int limit = args.limit() == null ? 500 : Math.clamp(args.limit(), 5, 500);
             List<ProductSalesResponse> rows = reportService.topProducts(range[0], range[1], args.warehouseId(), limit);
             StringBuilder md = new StringBuilder();
 

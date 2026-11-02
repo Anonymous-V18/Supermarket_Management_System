@@ -18,10 +18,12 @@ import com.anonymous.service.chatbot.*;
 import com.anonymous.service.chatbot.IntentRouter.Kind;
 import com.anonymous.service.chatbot.IntentRouter.Route;
 import com.anonymous.service.chatbot.KnowledgeRetriever.Passage;
+import com.anonymous.service.chatbot.tool.ChatFormat;
 import com.anonymous.service.chatbot.tool.ChatTool;
 import com.anonymous.service.chatbot.tool.ToolAnswer;
 import com.anonymous.service.chatbot.tool.ToolArgs;
 import com.anonymous.service.chatbot.tool.ToolRegistry;
+import com.anonymous.utils.ShiftUtil;
 import com.anonymous.utils.TtlCache;
 import com.anonymous.utils.VietnameseTextUtil;
 import jakarta.annotation.PreDestroy;
@@ -42,6 +44,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -79,6 +82,10 @@ public class ChatbotService implements IChatbotService {
             Map.entry("customer_lookup", new String[]{"/home/customer", "Đến trang Khách hàng"}),
             Map.entry("sales_return_search", new String[]{"/home/sales-return", "Đến trang Quản lý Trả hàng"}),
             Map.entry("invoice_search", new String[]{"/home/invoice", "Đến trang Quản lý Hóa đơn"}),
+            Map.entry("stock_in_search", new String[]{"/home/stockin", "Đến trang Quản lý Nhập kho"}),
+            Map.entry("stock_out_search", new String[]{"/home/stockout", "Đến trang Quản lý Xuất kho"}),
+            Map.entry("stock_transfer_search", new String[]{"/home/stock-transfer", "Đến trang Quản lý Chuyển kho"}),
+            Map.entry("stock_take_search", new String[]{"/home/stock-take", "Đến trang Quản lý Kiểm kê"}),
             Map.entry("supplier_lookup", new String[]{"/home/supplier", "Đến trang Nhà cung cấp"}),
             Map.entry("employee_lookup", new String[]{"/home/employee", "Đến trang Nhân viên"}),
             Map.entry("warehouse_lookup", new String[]{"/home/warehouse", "Đến trang Kho hàng"}),
@@ -94,6 +101,8 @@ public class ChatbotService implements IChatbotService {
 
     private final ChatbotProperties properties;
     private final IntentRouter intentRouter;
+    private final SlmQueryParser slmQueryParser;
+    private final DynamicSqlAgent dynamicSqlAgent;
     private final KnowledgeRetriever knowledgeRetriever;
     private final AnswerComposer answerComposer;
     private final ToolRegistry toolRegistry;
@@ -143,8 +152,23 @@ public class ChatbotService implements IChatbotService {
                         .name(tool.name()).description(tool.description()).examples(tool.examples()).build()).toList())
                 .suggestions(suggestions)
                 .canManageKnowledge(caller.roleCodes().contains("ADMIN"))
-                .llmEnabled(false)
+                .llmEnabled(slmQueryParser.isEnabled())
                 .build();
+    }
+
+    @Override
+    public SlmQueryParser.AiConfigStatus getAiConfig() {
+        return slmQueryParser.getConfigStatus();
+    }
+
+    @Override
+    public SlmQueryParser.AiConfigStatus updateAiConfig(Map<String, Object> request) {
+        Boolean enabled = request.get("enabled") instanceof Boolean b ? b : null;
+        String provider = request.get("provider") != null ? request.get("provider").toString() : null;
+        String apiKey = request.get("apiKey") != null ? request.get("apiKey").toString() : null;
+        String model = request.get("model") != null ? request.get("model").toString() : null;
+        documentAnswers.clear();
+        return slmQueryParser.updateConfig(enabled, provider, apiKey, model);
     }
 
     @Override
@@ -233,28 +257,48 @@ public class ChatbotService implements IChatbotService {
         String previousIntent = null;
         String lastPerson = null;
         String lastProduct = null;
+        String lastDocumentCode = null;
         String lastWarehouseId = null;
         String lastWarehouseName = null;
+        LocalDate lastFrom = null;
+        LocalDate lastTo = null;
+        LocalDate today = LocalDate.now(ShiftUtil.VIETNAM_ZONE);
 
         for (int i = recent.size() - 1; i >= 0; i--) {
             ChatMessage msg = recent.get(i);
+            String content = msg.getContent();
             if (previousIntent == null && ChatMessage.ROLE_ASSISTANT.equals(msg.getRole()) && msg.getIntent() != null) {
                 if (toolRegistry.find(msg.getIntent()).isPresent()) {
                     previousIntent = msg.getIntent();
                 }
             }
-            if (lastPerson == null) {
-                if (ChatMessage.ROLE_USER.equals(msg.getRole()) && msg.getContent() != null) {
-                    String p = IntentRouter.extractPersonName(msg.getContent());
-                    if (p != null && !IntentRouter.isPronoun(p)) {
-                        lastPerson = p;
-                    }
+            if (content == null || content.isBlank()) {
+                continue;
+            }
+            if (lastPerson == null && ChatMessage.ROLE_USER.equals(msg.getRole())) {
+                String p = IntentRouter.extractPersonName(content);
+                if (p != null && !IntentRouter.isPronoun(p)) {
+                    lastPerson = p;
                 }
             }
-            if (lastProduct == null && ChatMessage.ROLE_USER.equals(msg.getRole()) && msg.getContent() != null) {
-                Matcher pCode = Pattern.compile("\\b(SP\\d{5})\\b", Pattern.CASE_INSENSITIVE).matcher(msg.getContent());
+            if (lastProduct == null) {
+                Matcher pCode = Pattern.compile("\\b(SP\\d{5})\\b", Pattern.CASE_INSENSITIVE).matcher(content);
                 if (pCode.find()) {
                     lastProduct = pCode.group(1).toUpperCase(Locale.ROOT);
+                }
+            }
+            if (lastDocumentCode == null) {
+                Matcher docCode = Pattern.compile("\\b((?:HD|TH|PN|PX|CK|KK)\\d{6})\\b", Pattern.CASE_INSENSITIVE).matcher(content);
+                if (docCode.find()) {
+                    lastDocumentCode = docCode.group(1).toUpperCase(Locale.ROOT);
+                }
+            }
+            if (lastFrom == null && ChatMessage.ROLE_USER.equals(msg.getRole())) {
+                String plain = VietnameseTextUtil.stripDiacritics(VietnameseTextUtil.normalize(content));
+                Optional<TimeRangeParser.Range> parsedRange = TimeRangeParser.parse(plain, today);
+                if (parsedRange.isPresent()) {
+                    lastFrom = parsedRange.get().from();
+                    lastTo = parsedRange.get().to();
                 }
             }
         }
@@ -262,20 +306,70 @@ public class ChatbotService implements IChatbotService {
                 .previousIntent(previousIntent)
                 .lastPersonName(lastPerson)
                 .lastProductKeyword(lastProduct)
+                .lastDocumentCode(lastDocumentCode)
                 .lastWarehouseId(lastWarehouseId)
                 .lastWarehouseName(lastWarehouseName)
+                .lastFrom(lastFrom)
+                .lastTo(lastTo)
                 .build();
     }
 
     private Outcome resolve(String question, String scope, Caller caller, List<ChatMessage> recent, Stream stream) {
         List<ChatTool> allowed = toolRegistry.allowedFor(caller.roleCodes());
-        ConversationContext context = buildContext(recent);
-        Route route = "docs".equals(scope)
-                ? new Route(Kind.DOCS, null, null, null)
-                : intentRouter.route(question, caller.roleCodes(), context);
-
-        // Document searches get the previous answer's section added to a follow-up ("còn nếu ...?")
         String standalone = FollowUpQuestion.standalone(question, previousDocumentHeading(recent));
+
+        if ("docs".equals(scope)) {
+            Outcome fromDocs = documents(standalone, caller, stream, slmQueryParser.isEnabled() && !recent.isEmpty());
+            return fromDocs != null ? fromDocs : clarify(question, recent, allowed, stream);
+        }
+
+        // Fast-path for session-specific tools (current_user, my_shift_summary) and exact document codes (HD000001, PN000001...)
+        ConversationContext context = buildContext(recent);
+        Route route = intentRouter.route(question, caller.roleCodes(), context);
+        boolean isSessionOrExactCode = route.kind() == Kind.TOOL && route.tool() != null
+                && Set.of("current_user", "my_shift_summary", "invoice_lookup", "sales_return_lookup", "stock_document_lookup")
+                .contains(route.tool().name());
+
+        if (isSessionOrExactCode) {
+            return runTool(route.tool(), route.args(), standalone, caller, stream);
+        }
+
+        // Primary Engine (Option 3): Zero-Hardcode AI Text-to-SQL Agent + RAG
+        if (slmQueryParser != null && slmQueryParser.isEnabled() && dynamicSqlAgent != null) {
+            Optional<DynamicSqlAgent.AgentResult> sqlResult = dynamicSqlAgent.tryAnswer(question, caller.roleCodes(), recent);
+            if (sqlResult.isPresent()) {
+                DynamicSqlAgent.AgentResult res = sqlResult.get();
+                switch (res.mode()) {
+                    case "sql" -> {
+                        stream.delta(res.markdown());
+                        if (res.link() != null && !res.link().isBlank()) {
+                            stream.event("action", Map.of(
+                                    "link", res.link(),
+                                    "label", res.linkLabel() != null && !res.linkLabel().isBlank() ? res.linkLabel() : "Mở màn hình chi tiết"
+                            ));
+                        }
+                        return new Outcome("sql_agent", res.markdown(), List.of(), res.link(), res.linkLabel());
+                    }
+                    case "denied" -> {
+                        return denied(allowed, stream);
+                    }
+                    case "smalltalk" -> {
+                        String text = smalltalk(allowed);
+                        stream.delta(text);
+                        return Outcome.text("smalltalk", text);
+                    }
+                    case "docs" -> {
+                        if ("data".equals(scope)) {
+                            return clarify(question, recent, allowed, stream);
+                        }
+                        Outcome fromDocs = documents(standalone, caller, stream, !recent.isEmpty());
+                        return fromDocs != null ? fromDocs : clarify(question, recent, allowed, stream);
+                    }
+                }
+            }
+        }
+
+        // Offline / Fallback Engine when AI is disabled or unreachable
         return switch (route.kind()) {
             case SMALLTALK -> {
                 String text = smalltalk(allowed);
@@ -284,11 +378,14 @@ public class ChatbotService implements IChatbotService {
             }
             case DENIED -> denied(allowed, stream);
             case TOOL -> runTool(route.tool(), route.args(), standalone, caller, stream);
-            case UNSURE -> {
-                Outcome fromDocs = "data".equals(scope) ? null : documents(standalone, caller, stream, true);
-                yield fromDocs != null ? fromDocs : clarify(allowed, stream);
+            case UNSURE -> clarify(question, recent, allowed, stream);
+            case DOCS -> {
+                if ("data".equals(scope)) {
+                    yield clarify(question, recent, allowed, stream);
+                }
+                Outcome fromDocs = documents(standalone, caller, stream, slmQueryParser.isEnabled() && !recent.isEmpty());
+                yield fromDocs != null ? fromDocs : clarify(question, recent, allowed, stream);
             }
-            case DOCS -> "data".equals(scope) ? clarify(allowed, stream) : documents(standalone, caller, stream, false);
         };
     }
 
@@ -320,18 +417,97 @@ public class ChatbotService implements IChatbotService {
             stream.delta(text);
             return Outcome.text(tool.name(), text);
         }
-        if (!answer.matched()) {
-            // Nothing found under that name: maybe it was a policy question after all
-            Outcome fromDocs = documents(standalone, caller, stream, true);
-            if (fromDocs != null) {
-                return fromDocs;
-            }
-        }
         stream.delta(answer.markdown());
         if (answer.link() != null) {
             stream.event("action", Map.of("link", answer.link(), "label", answer.linkLabel()));
         }
+        List<String> followUps = smartSuggestions(tool.name(), args == null ? ToolArgs.empty() : args, caller);
+        if (!followUps.isEmpty()) {
+            stream.event("suggestions", Map.of("items", followUps));
+        }
         return new Outcome(tool.name(), answer.markdown(), List.of(), answer.link(), answer.linkLabel());
+    }
+
+    private List<String> smartSuggestions(String toolName, ToolArgs args, Caller caller) {
+        Set<String> allowedNames = toolRegistry.allowedFor(caller.roleCodes()).stream()
+                .map(ChatTool::name)
+                .collect(Collectors.toSet());
+        String period = (args.from() != null && args.to() != null)
+                ? " " + ChatFormat.range(args.from(), args.to())
+                : " hôm nay";
+
+        List<String> candidates = new ArrayList<>();
+        switch (toolName) {
+            case "invoice_stats" -> {
+                if (allowedNames.contains("top_products")) candidates.add("Chi tiết các mặt hàng bán ra" + period);
+                if (allowedNames.contains("revenue")) candidates.add("Doanh thu và lợi nhuận" + period);
+                if (allowedNames.contains("sales_by_employee")) candidates.add("Doanh số nhân viên" + period);
+            }
+            case "revenue" -> {
+                if (!Boolean.TRUE.equals(args.byWarehouse())) {
+                    candidates.add("Doanh thu theo từng kho" + period);
+                }
+                if (allowedNames.contains("top_products")) candidates.add("Top sản phẩm bán chạy" + period);
+                if (allowedNames.contains("sales_by_employee")) candidates.add("Doanh số nhân viên" + period);
+            }
+            case "top_products" -> {
+                if (allowedNames.contains("revenue")) candidates.add("Doanh thu theo từng kho" + period);
+                if (allowedNames.contains("inventory")) candidates.add("Các mặt hàng dưới mức tồn tối thiểu");
+                if (allowedNames.contains("sales_by_employee")) candidates.add("Doanh số theo nhân viên" + period);
+            }
+            case "sales_by_employee" -> {
+                if (allowedNames.contains("employee_lookup")) candidates.add("Danh sách nhân viên");
+                if (allowedNames.contains("revenue")) candidates.add("Doanh thu theo từng kho" + period);
+                if (allowedNames.contains("top_products")) candidates.add("Top sản phẩm bán chạy" + period);
+            }
+            case "inventory" -> {
+                if (!Boolean.TRUE.equals(args.lowStockOnly())) {
+                    candidates.add("Các mặt hàng dưới mức tồn tối thiểu");
+                }
+                if (!Boolean.TRUE.equals(args.byWarehouse())) {
+                    candidates.add("Kho nào đang có nhiều sản phẩm nhất?");
+                }
+                if (allowedNames.contains("expiring_lots")) candidates.add("Hàng nào sắp hết hạn trong 30 ngày?");
+            }
+            case "expiring_lots" -> {
+                if (allowedNames.contains("inventory")) candidates.add("Các mặt hàng dưới mức tồn tối thiểu");
+                if (allowedNames.contains("supplier_lookup")) candidates.add("Danh sách nhà cung cấp");
+            }
+            case "customer_lookup" -> {
+                if (args.keyword() != null && !args.keyword().isBlank()) {
+                    if (allowedNames.contains("invoice_search")) candidates.add("Hóa đơn của khách hàng " + args.keyword());
+                    if (allowedNames.contains("sales_return_search")) candidates.add("Phiếu trả hàng của khách hàng " + args.keyword());
+                } else {
+                    if (allowedNames.contains("sales_return_search")) candidates.add("Danh sách phiếu trả hàng gần đây");
+                }
+            }
+            case "employee_lookup" -> {
+                if (allowedNames.contains("sales_by_employee")) candidates.add("Doanh số nhân viên tháng này");
+                if (allowedNames.contains("shift_staff")) candidates.add("Ai đang trực ca hiện tại?");
+                if (allowedNames.contains("shift_checklist")) candidates.add("Checklist kiểm tra đầu ca");
+            }
+            case "invoice_lookup", "invoice_search" -> {
+                if (allowedNames.contains("invoice_stats")) candidates.add("Thống kê hóa đơn hôm nay");
+                if (allowedNames.contains("sales_return_search")) candidates.add("Danh sách phiếu trả hàng gần đây");
+                if (allowedNames.contains("revenue")) candidates.add("Doanh thu hôm nay");
+            }
+            case "stock_in_search", "stock_out_search", "stock_transfer_search", "stock_take_search" -> {
+                if (allowedNames.contains("stock_in_search") && !"stock_in_search".equals(toolName)) {
+                    candidates.add("Có tổng bao nhiêu phiếu nhập kho" + period);
+                }
+                if (allowedNames.contains("stock_out_search") && !"stock_out_search".equals(toolName)) {
+                    candidates.add("Có tổng bao nhiêu phiếu xuất kho" + period);
+                }
+                if (allowedNames.contains("inventory")) {
+                    candidates.add("Tồn kho hiện tại theo từng kho");
+                }
+            }
+            default -> {
+                if (allowedNames.contains("data_overview")) candidates.add("Tổng quan hôm nay");
+                if (allowedNames.contains("my_shift_summary")) candidates.add("Ca này tôi bán được bao nhiêu?");
+            }
+        }
+        return candidates.stream().limit(3).toList();
     }
 
     // requireHit: return null (and send nothing) when no passage qualifies, so the caller can answer otherwise
@@ -374,7 +550,39 @@ public class ChatbotService implements IChatbotService {
         return Outcome.text("denied", text.toString());
     }
 
-    private Outcome clarify(List<ChatTool> allowed, Stream stream) {
+    private Outcome clarify(String question, List<ChatMessage> recent, List<ChatTool> allowed, Stream stream) {
+        if (slmQueryParser != null && slmQueryParser.isEnabled()) {
+            StringBuilder sys = new StringBuilder("""
+                    Bạn là Trợ lý AI thông minh của Hệ thống Quản lý Siêu thị.
+                    Quy tắc bắt buộc:
+                    1. Nếu câu hỏi liên quan đến các số liệu/danh sách vừa trả lời ở lịch sử trò chuyện bên dưới (ví dụ: tính trung bình, nhận xét, tóm tắt, so sánh các dòng đã hiển thị), hãy tính toán và trả lời trực tiếp, chính xác, tự nhiên bằng tiếng Việt dựa trên đúng số liệu trong lịch sử đó.
+                    2. TUYỆT ĐỐI KHÔNG tự bịa số liệu mới không có trong lịch sử trò chuyện.
+                    3. Nếu người dùng hỏi một vấn đề ngoài phạm vi dữ liệu vừa có, hãy trả lời lịch sự và gợi ý họ hỏi theo các chức năng họ được cấp quyền bên dưới.
+                    Các chức năng người dùng được phép truy cập:
+                    """);
+            for (ChatTool t : allowed) {
+                sys.append("- ").append(t.description()).append(" (Ví dụ: \"").append(t.examples().getFirst()).append("\")\n");
+            }
+            StringBuilder userPrompt = new StringBuilder();
+            if (!recent.isEmpty()) {
+                userPrompt.append("Lịch sử trò chuyện gần nhất:\n");
+                int startIdx = Math.max(0, recent.size() - 4);
+                for (int i = startIdx; i < recent.size(); i++) {
+                    ChatMessage m = recent.get(i);
+                    String c = m.getContent() != null ? m.getContent() : "";
+                    if (c.length() > 1500) c = c.substring(0, 1500) + "...";
+                    userPrompt.append(m.getRole()).append(": ").append(c).append("\n\n");
+                }
+            }
+            userPrompt.append("Câu hỏi hiện tại của người dùng: ").append(question);
+
+            Optional<String> aiReply = slmQueryParser.completeText(sys.toString(), userPrompt.toString());
+            if (aiReply.isPresent()) {
+                stream.delta(aiReply.get());
+                stream.event("suggestions", Map.of("items", allowed.stream().limit(3).map(tool -> tool.examples().getFirst()).toList()));
+                return Outcome.text("ai_assistant", aiReply.get());
+            }
+        }
         String text = "Mình chưa rõ bạn muốn tra cứu gì. Bạn có thể hỏi cụ thể hơn, ví dụ:";
         stream.delta(text);
         stream.event("suggestions", Map.of("items", allowed.stream().limit(4).map(tool -> tool.examples().getFirst()).toList()));

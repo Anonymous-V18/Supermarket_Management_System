@@ -9,6 +9,7 @@ public final class PageUtil {
 
     public static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
+    private static final int MAX_EXPORT_SIZE = 1000;
 
     private PageUtil() {
     }
@@ -16,6 +17,11 @@ public final class PageUtil {
     public static Pageable newestFirst(int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), MAX_SIZE);
         return PageRequest.of(Math.max(page, 0), safeSize, Sort.by(Sort.Direction.DESC, "createdDate"));
+    }
+
+    public static Pageable newestFirstUnbounded(int size) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_EXPORT_SIZE);
+        return PageRequest.of(0, safeSize, Sort.by(Sort.Direction.DESC, "createdDate"));
     }
 
 }

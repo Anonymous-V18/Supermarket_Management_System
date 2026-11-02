@@ -8,6 +8,7 @@ import com.anonymous.dto.response.ChatCapabilitiesResponse;
 import com.anonymous.dto.response.ChatConversationResponse;
 import com.anonymous.dto.response.ChatMessageResponse;
 import com.anonymous.service.IChatbotService;
+import com.anonymous.service.chatbot.SlmQueryParser.AiConfigStatus;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 // Every signed-in user has a chatbot; what it may answer is limited inside by the user's roles
 // (tools carry the same @PreAuthorize rules as the screens, documents are filtered by allowed roles).
@@ -35,6 +37,22 @@ public class ChatbotController {
     public ApiResponse<ChatCapabilitiesResponse> getCapabilities() {
         return ApiResponse.<ChatCapabilitiesResponse>builder()
                 .result(chatbotService.getCapabilities())
+                .build();
+    }
+
+    @GetMapping("/ai-config")
+    @PreAuthorize(Permissions.AUTHENTICATED)
+    public ApiResponse<AiConfigStatus> getAiConfig() {
+        return ApiResponse.<AiConfigStatus>builder()
+                .result(chatbotService.getAiConfig())
+                .build();
+    }
+
+    @PostMapping("/ai-config")
+    @PreAuthorize(Permissions.AUTHENTICATED)
+    public ApiResponse<AiConfigStatus> updateAiConfig(@RequestBody Map<String, Object> request) {
+        return ApiResponse.<AiConfigStatus>builder()
+                .result(chatbotService.updateAiConfig(request))
                 .build();
     }
 

@@ -1,5 +1,6 @@
 package com.anonymous.service.chatbot;
 
+import com.anonymous.constant.Permissions;
 import com.anonymous.service.chatbot.tool.ChatTool;
 import com.anonymous.service.chatbot.tool.ToolAccess;
 import com.anonymous.service.chatbot.tool.ToolArgs;
@@ -51,6 +52,7 @@ public class IntentRouter {
 
     private static final Pattern DOCUMENT_CODE = Pattern.compile("\\b(hd|th|pn|px|ck|kk)\\s*-?\\s*(\\d{1,10})\\b");
     private static final Pattern PRODUCT_CODE = Pattern.compile("\\bsp\\s*-?\\s*(\\d{1,8})\\b");
+    private static final Pattern EMPLOYEE_CODE = Pattern.compile("\\bnv\\s*-?\\s*(\\d{1,8})\\b");
     private static final Pattern BARCODE = Pattern.compile("\\b(\\d{8,14})\\b");
     // On the accented text, so "tối đa" is not "tôi"; accent-free only when the question was typed without accents
     private static final Pattern PERSONAL = Pattern.compile("(?U)\\b(tôi|mình|em)\\b");
@@ -91,7 +93,9 @@ public class IntentRouter {
             "giá", "bán", "tiền", "còn", "hàng", "tồn", "kho", "số", "lượng", "mã", "vạch", "sản", "phẩm", "mặt",
             "hiện", "tại", "tra", "cứu", "xem", "loại", "món", "bây", "giờ", "liệt", "kê", "danh", "sách", "tổng",
             "kiểm", "tìm", "sp", "cái", "chiếc", "hộp", "gói", "chai", "lon", "sắp", "hết", "dưới", "mức", "tối",
-            "thiểu", "thấp", "thiếu", "nhập", "thêm", "hạn", "lô", "sử", "dụng", "date", "hsd", "chạy", "nhất", "top");
+            "thiểu", "thấp", "thiếu", "nhập", "thêm", "hạn", "lô", "sử", "dụng", "date", "hsd", "chạy", "nhất", "top",
+            "hệ", "thống", "siêu", "thị", "cửa", "kinh", "doanh", "tất", "cả", "toàn", "bộ", "những", "các", "mấy",
+            "đếm", "thông", "tin", "chi", "tiết", "hóa", "đang", "có");
     private static final Set<String> DATA_WORDS_ACCENT_FREE = accentFree(DATA_WORDS);
     private static final Set<String> TIME_WORDS = Set.of(
             "hom", "nay", "qua", "kia", "tuan", "thang", "nam", "ngay", "truoc", "gan", "day", "nhat", "quy", "tu", "den");
@@ -174,6 +178,10 @@ public class IntentRouter {
         if (productCode.find()) {
             return decide("product_lookup", args.keyword("SP" + pad(productCode.group(1), 5)).build(), roleCodes);
         }
+        Matcher employeeCode = EMPLOYEE_CODE.matcher(t);
+        if (employeeCode.find()) {
+            return decide("employee_lookup", args.keyword("NV" + pad(employeeCode.group(1), 5)).build(), roleCodes);
+        }
         Matcher barcode = BARCODE.matcher(t);
         if (barcode.find()) {
             return decide("product_lookup", args.keyword(barcode.group(1)).build(), roleCodes);
@@ -193,20 +201,48 @@ public class IntentRouter {
             return decide("my_shift_summary", args.build(), roleCodes);
         }
 
-        // Zero-Hardcode Local SLM Query Parser (for natural language analytical questions)
-        if (slmQueryParser != null && slmQueryParser.isEnabled()) {
-            Optional<SlmQueryParser.SlmResult> slmParsed = slmQueryParser.parse(question, today);
-            if (slmParsed.isPresent()) {
-                Route slmRoute = mapSlmResult(slmParsed.get(), question, today, roleCodes);
-                if (slmRoute != null) {
-                    return slmRoute;
-                }
-            }
-        }
-
         String previousIntent = context != null ? context.previousIntent() : null;
         String lastPerson = context != null ? context.lastPersonName() : null;
         String lastProduct = context != null ? context.lastProductKeyword() : null;
+        String lastDocCode = context != null ? context.lastDocumentCode() : null;
+
+        // Contextual follow-up inheritance ONLY when the user explicitly refers back to the previous period/warehouse
+        boolean hasContextPointer = t.startsWith("con ") || t.startsWith("the con ") || t.startsWith("vay con ")
+                || containsAny(t, List.of("ngay do", "hom do", "thang do", "tuan do", "nam do", "ky do", "khoang do", "the con", "thi sao"));
+        if (context != null) {
+            if (args.build().from() == null && context.lastFrom() != null && hasContextPointer) {
+                args.from(context.lastFrom()).to(context.lastTo() != null ? context.lastTo() : context.lastFrom());
+            }
+            if (warehouse.isEmpty() && context.lastWarehouseId() != null
+                    && (t.startsWith("con ") || containsAny(t, List.of("kho do", "o do", "tai do", "the con", "thi sao")))) {
+                args.warehouseId(context.lastWarehouseId()).warehouseName(context.lastWarehouseName());
+            }
+        }
+
+        // Follow-up asking about a specific document from the previous turn ("chi tiết đơn đó", "trong hóa đơn đó có gì"):
+        if (lastDocCode != null && containsAny(t, List.of("don do", "hoa don do", "phieu do", "ma do", "trong don do", "trong hoa don do", "chi tiet don", "chi tiet hoa don"))) {
+            String prefix = lastDocCode.substring(0, 2).toUpperCase(Locale.ROOT);
+            String docTool = switch (prefix) {
+                case "HD" -> "invoice_lookup";
+                case "TH" -> "sales_return_lookup";
+                default -> "stock_document_lookup";
+            };
+            return decide(docTool, args.keyword(lastDocCode).build(), roleCodes);
+        }
+
+        // Follow-up asking which products were sold ("4 sản phẩm đó là gì", "các mặt hàng đó là gì", "gồm những sản phẩm nào"):
+        if (previousIntent != null && containsAny(t, List.of(
+                "san pham do la gi", "mat hang do la gi", "nhung san pham do", "cac san pham do",
+                "nhung mat hang do", "cac mat hang do", "gom nhung san pham", "gom nhung mat hang",
+                "gom nhung gi", "do la nhung san pham", "do la nhung mat hang", "ban nhung gi", "ban duoc nhung gi"))) {
+            if ("invoice_lookup".equals(previousIntent) && lastDocCode != null) {
+                return decide("invoice_lookup", args.keyword(lastDocCode).build(), roleCodes);
+            }
+            if (context != null && context.lastFrom() != null && args.build().from() == null) {
+                args.from(context.lastFrom()).to(context.lastTo() != null ? context.lastTo() : context.lastFrom());
+            }
+            return decide("top_products", args.build(), roleCodes);
+        }
 
         // Follow-up on person lookup (e.g. user previously looked up an employee, and now says "Họ Đỗ"):
         if (previousIntent != null && isPersonIntent(previousIntent)) {
@@ -224,6 +260,21 @@ public class IntentRouter {
                 .matcher(question.trim());
         if (elliptical.matches() && previousIntent != null && toolRegistry.find(previousIntent).isPresent()) {
             String subject = elliptical.group(1) != null ? elliptical.group(1).trim() : elliptical.group(2).trim();
+            String subjectPlain = VietnameseTextUtil.stripDiacritics(subject.toLowerCase(Locale.ROOT));
+            if (containsAny(subjectPlain, List.of("doanh thu", "loi nhuan", "lai gop"))) {
+                if (context != null && context.lastFrom() != null && args.build().from() == null) {
+                    args.from(context.lastFrom()).to(context.lastTo() != null ? context.lastTo() : context.lastFrom());
+                }
+                return decide("revenue", args.build(), roleCodes);
+            }
+            if (containsAny(subjectPlain, List.of("ton kho", "hang ton"))) {
+                return decide("inventory", args.keyword(lastProduct).build(), roleCodes);
+            }
+            if (containsAny(subjectPlain, List.of("gia", "gia ban"))) {
+                if (lastProduct != null) {
+                    return decide("product_lookup", args.keyword(lastProduct).build(), roleCodes);
+                }
+            }
             if (!isPronoun(subject) && subject.length() >= 2) {
                 if (isPersonIntent(previousIntent)) {
                     return decide(previousIntent, args.keyword(subject).build(), roleCodes);
@@ -249,19 +300,36 @@ public class IntentRouter {
         if (containsAny(t, List.of("khuyen mai", "voucher", "ma giam gia", "uu dai", "chuong trinh giam gia"))) {
             return decide("promotion_lookup", args.build(), roleCodes);
         }
-        if (containsAny(t, List.of("danh sach kho", "cac kho", "co may kho", "nhung kho nao", "kho hang nao", "dia chi kho", "thong tin kho"))) {
+        if (containsAny(t, List.of("phieu nhap", "phieu nhap kho", "don nhap", "nhap kho", "hang nhap", "nhap hang"))) {
+            String supplier = extractPersonName(question);
+            return decide("stock_in_search", args.keyword(supplier != null ? supplier : "").build(), roleCodes);
+        }
+        if (containsAny(t, List.of("phieu xuat", "phieu xuat kho", "don xuat", "xuat kho", "xuat huy", "hang xuat", "xuat hang"))) {
+            String kw = extractPersonName(question);
+            return decide("stock_out_search", args.keyword(kw != null ? kw : "").build(), roleCodes);
+        }
+        if (containsAny(t, List.of("phieu chuyen", "phieu chuyen kho", "chuyen kho", "dieu chuyen", "luanchuyen"))) {
+            return decide("stock_transfer_search", args.build(), roleCodes);
+        }
+        if (containsAny(t, List.of("phieu kiem", "phieu kiem ke", "kiem ke", "kiem kho", "kiem ke kho"))) {
+            return decide("stock_take_search", args.build(), roleCodes);
+        }
+        if (containsAny(t, List.of("danh sach kho", "cac kho", "co may kho", "bao nhieu kho", "so luong kho",
+                "tong so kho", "nhung kho nao", "kho hang nao", "dia chi kho", "thong tin kho"))) {
             return decide("warehouse_lookup", args.keyword(warehouse.map(WarehouseResolver.Match::name).orElse(null)).build(), roleCodes);
         }
         if (containsAny(t, List.of("tra hang", "doi tra", "phieu tra", "hoan tra"))) {
             String person = extractPersonName(question);
-            if (person == null && lastPerson != null && (containsPersonPronoun(t) || "customer_lookup".equals(previousIntent))) {
+            if (person == null && lastPerson != null
+                    && (containsPersonPronoun(t) || ("customer_lookup".equals(previousIntent) && !mentionsTime && !containsAny(t, COUNT_WORDS)))) {
                 person = lastPerson;
             }
             return decide("sales_return_search", args.keyword(person != null ? person : "").build(), roleCodes);
         }
         if (containsAny(t, INVOICE_NOUNS)) {
             String person = extractPersonName(question);
-            if (person == null && lastPerson != null && (containsPersonPronoun(t) || ("customer_lookup".equals(previousIntent) && !mentionsTime))) {
+            if (person == null && lastPerson != null
+                    && (containsPersonPronoun(t) || ("customer_lookup".equals(previousIntent) && !mentionsTime && !containsAny(t, COUNT_WORDS)))) {
                 person = lastPerson;
             }
             if (person != null) {
@@ -325,7 +393,7 @@ public class IntentRouter {
             return decide("inventory", args.lowStockOnly(true).keyword(productKeyword(normalized, warehouse)).build(), roleCodes);
         }
         String keyword = productKeyword(normalized, warehouse);
-        if (containsAny(t, List.of("ton kho", "gia tri ton", "hang ton", "so luong ton"))) {
+        if (containsAny(t, List.of("ton kho", "gia tri ton", "hang ton", "so luong ton", "trong kho co bao nhieu", "trong kho con"))) {
             Route inventory = decide("inventory", args.keyword(keyword).build(), roleCodes);
             // Cashiers may not open the stock report, but may see a product's stock (sales screen)
             if (inventory.kind() == Kind.DENIED && keyword != null) {
@@ -337,6 +405,18 @@ public class IntentRouter {
                 "ma vach", "gia", "het chua", "con khong"))) {
             return keyword != null ? decide("product_lookup", args.keyword(keyword).build(), roleCodes) : Route.unsure();
         }
+        if (containsAny(t, List.of("san pham", "mat hang", "hang hoa"))
+                && !t.contains("doanh") && !t.contains("ban chay")
+                && (containsAny(t, COUNT_WORDS)
+                || containsAny(t, List.of("hien tai", "hien co", "tat ca", "toan bo", "co nhung", "nhung san pham",
+                "cac san pham", "nhung mat hang", "cac mat hang", "tim", "tra cuu", "xem", "thong tin"))
+                || warehouse.isPresent()
+                || keyword != null)) {
+            if (warehouse.isPresent() && keyword == null && ToolAccess.allows(Permissions.STOCK_READ, roleCodes)) {
+                return decide("inventory", args.build(), roleCodes);
+            }
+            return decide("product_lookup", args.keyword(keyword).build(), roleCodes);
+        }
 
         if (containsAny(t, OVERVIEW_WORDS)) {
             return decide("data_overview", args.build(), roleCodes);
@@ -344,11 +424,27 @@ public class IntentRouter {
 
         // Follow-up such as "còn tháng trước?" right after a data answer: same tool, new period / warehouse
         boolean newScope = args.build().from() != null || warehouse.isPresent();
-        if (previousIntent != null && newScope && VietnameseTextUtil.syllables(t).size() <= 8
+        if (previousIntent != null && newScope && VietnameseTextUtil.syllables(t).size() <= 6
+                && (t.startsWith("con ") || t.startsWith("the con ") || !containsAny(t, DATA_NOUNS))
                 && toolRegistry.find(previousIntent).isPresent()) {
             return decide(previousIntent, args.build(), roleCodes);
         }
-        if ((containsAny(t, List.of("bao nhieu", "may", "liet ke", "danh sach", "tong so", "thong ke")) || newScope)
+
+        // AI Query Parser fallback for flexible / colloquial phrasings not matched by deterministic rules
+        if (slmQueryParser != null && slmQueryParser.isEnabled()) {
+            Optional<SlmQueryParser.SlmResult> slmParsed = slmQueryParser.parse(question, today, context);
+            if (slmParsed == null || slmParsed.isEmpty()) {
+                slmParsed = slmQueryParser.parse(question, today);
+            }
+            if (slmParsed != null && slmParsed.isPresent()) {
+                Route slmRoute = mapSlmResult(slmParsed.get(), question, today, roleCodes);
+                if (slmRoute != null) {
+                    return slmRoute;
+                }
+            }
+        }
+
+        if ((containsAny(t, COUNT_WORDS) || newScope)
                 && containsAny(t, DATA_NOUNS)) {
             return Route.unsure();
         }
